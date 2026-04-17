@@ -31,6 +31,17 @@ def format_time_range(start_time: datetime, end_time: datetime) -> str:
         return f"{start_time.strftime('%Y.%m.%d %H')} - {end_time.strftime('%Y.%m.%d %H')}"
 
 
+CATEGORY_EMOJI_MAP = {
+    "大厂&融资": "🏢",
+    "模型&论文": "🧠",
+    "产品&开源": "🛠️",
+    "编程&架构": "💻",
+    "增长&自媒体": "📈",
+    "独立开发": "🚀",
+    "观点&争议": "💬",
+}
+
+
 def build_ai_daily_card(
     categories: list[dict],
     platform: str = "AI Daily",
@@ -44,7 +55,6 @@ def build_ai_daily_card(
     [
         {
             "name": "大厂&融资",
-            "emoji": "🏢",
             "summary": "科技巨头新一轮融资潮涌动，AI 赛道估值持续走高",
             "items": [
                 {
@@ -60,6 +70,8 @@ def build_ai_daily_card(
     platform: 平台名，如 "X"、"即刻"
     start_time: 抓取开始时间
     end_time: 抓取结束时间
+
+    emoji 会根据主题名从 CATEGORY_EMOJI_MAP 中自动映射，无需上游传入。
     """
     if start_time is None:
         start_time = datetime.now()
@@ -100,13 +112,14 @@ def build_ai_daily_card(
             for item in items
         ])
 
+        emoji = CATEGORY_EMOJI_MAP.get(cat["name"], "")
         panel = {
             "tag": "collapsible_panel",
             "expanded": idx == 0,
             "header": {
                 "title": {
                     "tag": "markdown",
-                    "content": f"**{cat['emoji']}{cat['name']}：{cat['summary']}**",
+                    "content": f"**{emoji}{cat['name']}：{cat['summary']}**",
                 },
                 "icon": {
                     "tag": "standard_icon",
@@ -127,11 +140,10 @@ def build_ai_daily_card(
 
 
 def main():
-    # 示例数据：只有 4 个主题，每个主题子信息数不同
+    # 示例数据：只有 4 个主题，每个主题子信息数不同（注意：不再包含 emoji）
     sample_categories = [
         {
             "name": "大厂&融资",
-            "emoji": "🏢",
             "summary": "科技巨头新一轮融资潮涌动，AI 赛道估值持续走高",
             "items": [
                 {
@@ -150,7 +162,6 @@ def main():
         },
         {
             "name": "模型&论文",
-            "emoji": "🧠",
             "summary": "前沿研究成果密集发布，多模态与推理能力成焦点",
             "items": [
                 {
@@ -163,7 +174,6 @@ def main():
         },
         {
             "name": "产品&开源",
-            "emoji": "🛠️",
             "summary": "多款 AI 工具正式上线，开源社区迎来重磅更新",
             "items": [
                 {
@@ -188,7 +198,6 @@ def main():
         },
         {
             "name": "独立开发",
-            "emoji": "🚀",
             "summary": "一人公司模式兴起，AI 工具链助力快速变现",
             "items": [
                 {
