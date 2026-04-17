@@ -23,7 +23,7 @@ uv pip install -r requirements.txt
 .venv\Scripts\python.exe send_card.py --template text --var "text=自定义"
 
 # 动态 AI Daily 卡片（会生成 preview_ai_daily_*.json 并向 webhook 发送示例）
-.venv\Scripts\python.exe card_builder.py
+.venv\Scripts\python.exe examples\preview_ai_daily.py
 ```
 
 项目目前没有测试框架或 lint 配置。
@@ -38,10 +38,12 @@ uv pip install -r requirements.txt
    - `${variable}` 与 `repeat` 组件通过 Webhook 发送时**不会被渲染**，新增模板时需先静态化。
    - `--var key=value` 只做 payload 顶层 / `card` 层 / `content` 层的简单字符串替换，不是完整的模板引擎。
 
-2. **动态构建路径 —— `card_builder.py`**
-   - 核心是 `build_ai_daily_card(categories, platform, start_time, end_time)`，按平台（X / 即刻 / HackerNews…）与时间窗自适应生成标题，并为 `categories` 中每个主题生成一个 `collapsible_panel`。
-   - 主题 emoji 通过模块内硬编码的 `CATEGORY_EMOJI_MAP` 映射（7 个预设主题：大厂&融资、模型&论文、产品&开源、编程&架构、增长&自媒体、独立开发、观点&争议）。**上游 AI 只输出主题名，不输出 emoji**；无内容的主题不应出现在列表中。
+2. **动态构建路径 —— `card_builder.py` + `feishu_client.py` + `categories.py`**
+   - `card_builder.build_ai_daily_card(categories, platform, start_time, end_time)` 为纯函数：按平台（X / 即刻 / HackerNews…）与时间窗自适应生成标题，并为 `categories` 中每个主题生成一个 `collapsible_panel`。
+   - `feishu_client.send_card(webhook_url, payload)` 负责实际 HTTP 发送；`FEISHU_WEBHOOK_URL` 只在这里 `load_dotenv`。
+   - `categories.CATEGORY_EMOJI_MAP` 集中维护 7 个预设主题的 emoji（大厂&融资、模型&论文、产品&开源、编程&架构、增长&自媒体、独立开发、观点&争议），`summarizer.py` 也从此处读取主题白名单。**上游 AI 只输出主题名，不输出 emoji**；无内容的主题不应出现在列表中。
    - `format_time_range()` 自动识别同日/跨日，生成 `YYYY.MM.DD HH - HH` 或跨日格式。
+   - 示例/预览入口：`examples/preview_ai_daily.py`。
 
 ### 数据流水线（预留接口）
 
@@ -58,5 +60,5 @@ fetcher.py  →  summarizer.py  →  card_builder.py
 ## 新增内容的注意事项
 
 - **新静态模板**：放入 `cards/`，保持完整 payload 格式；新增后用 `--list` 验证是否被正确加载（解析失败会直接使程序退出）。引用的 `img_key` 需上传到对应飞书租户。
-- **扩展动态卡片的主题**：同时更新 `CATEGORY_EMOJI_MAP` 与 README 中的主题表，保持两处一致。
-- **调试卡片视觉**：`card_builder.py` 运行会在项目根目录写出 `preview_ai_daily_*.json`，可用作不发送情况下的 payload 校对（历史预览文件已存在于 `test-file/`，`backup/` 保留 AI Daily 卡片的演进版本）。
+- **扩展动态卡片的主题**：同时更新 `categories.py` 的 `CATEGORY_EMOJI_MAP` 与 README 中的主题表，保持两处一致。
+- **调试卡片视觉**：`examples/preview_ai_daily.py` 运行会在项目根目录写出 `preview_ai_daily_*.json`，可用作不发送情况下的 payload 校对（历史预览文件已存在于 `test-file/`，`backup/` 保留 AI Daily 卡片的演进版本）。

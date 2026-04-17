@@ -22,12 +22,13 @@
 
 import json
 import os
+import sys
 from typing import Any
 
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from card_builder import CATEGORY_EMOJI_MAP
+from categories import CATEGORY_EMOJI_MAP
 
 load_dotenv()
 
@@ -53,10 +54,16 @@ SYSTEM_PROMPT = f"""你是一名资讯编辑,负责把一批来自同一平台�
 
 【字段规则】
 1. item.title:简洁的主谓结构,不超过 40 字,不要带表情或 hashtag。
-2. item.summary:一句话(20~50 字)点明关键事实或数字,不要与 title 重复。
-3. item.source:使用平台名或原站点名(例如 "X"、"即刻"、"HackerNews"、"Bloomberg"、"arXiv"),不要放 URL。
-4. item.url:必须是有效的外链。
-5. category.summary:对本批该主题的整体趋势做一句话点评(15~40 字),不要是 items 的简单堆砌。
+2. item.summary:一段叙述性文字(40~120 字),点明关键事实或数字,并将来源链接以 **markdown 内联** 方式嵌入正文;禁止与 title 重复,禁止在末尾单独罗列链接。
+3. category.summary:对本批该主题的整体趋势做一句话点评(15~40 字),不要是 items 的简单堆砌。
+
+【内联链接规则】
+1. 锚文本优先级:输入里若有 `author` 则用 author(去掉开头的 `@`);author 空缺时用站点/产品名(如 "The Information"、"TechCrunch"、"arXiv")。
+2. 链接语法使用标准 markdown: `[锚文本](url)`。url **必须**取自对应输入文章的 `url` 字段,严禁编造或改写;summary 中出现的每个 url 必须能在输入里找到。
+3. 链接要自然融入叙述,例如 "据 [Lisan al Gaib](url) 报道,..." 或 "[The Information](url) 独家披露,..."。
+4. 合并后来源若观点一致:在句末并列列出多个锚文本,逗号分隔,例如 "...支持导出多种格式 [TechCrunch](u1), [nate parrott](u2), [歸藏](u3)。"
+5. 合并后来源若观点不同:把每条来源的链接嵌入各自对应的描述句中,不要在句末堆叠。
+6. 每条 item 至少包含 1 个内联链接。
 
 【输出】严格遵循给定的 JSON Schema,不要输出任何额外文本。
 主题枚举取值: {CATEGORIES_ENUM}
@@ -84,12 +91,10 @@ RESPONSE_SCHEMA: dict[str, Any] = {
                             "items": {
                                 "type": "object",
                                 "additionalProperties": False,
-                                "required": ["title", "summary", "source", "url"],
+                                "required": ["title", "summary"],
                                 "properties": {
                                     "title": {"type": "string"},
                                     "summary": {"type": "string"},
-                                    "source": {"type": "string"},
-                                    "url": {"type": "string"},
                                 },
                             },
                         },
@@ -201,6 +206,7 @@ def _mock_articles() -> list[dict]:
 
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
     mock = _mock_articles()
     categories = summarize(mock, platform="X")
     print(json.dumps(categories, ensure_ascii=False, indent=2))

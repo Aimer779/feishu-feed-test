@@ -76,10 +76,10 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 
 ```powershell
 # 运行示例（会发送示例数据到配置的 webhook）
-.venv\Scripts\python.exe card_builder.py
+.venv\Scripts\python.exe examples\preview_ai_daily.py
 ```
 
-`card_builder.py` 会生成三个预览文件用于调试：
+`examples/preview_ai_daily.py` 会生成四个预览文件用于调试：
 - `preview_ai_daily_x.json`
 - `preview_ai_daily_jike.json`
 - `preview_ai_daily_hn.json`
@@ -145,7 +145,7 @@ fetcher.py (抓取) → summarizer.py (AI 总结分类) → card_builder.py (组
   - 跨天：`2026.04.17 23 - 2026.04.18 01`
 - **主题数量自适应**：上游返回几个主题，卡片就生成几个 `collapsible_panel`（0~N 个）
 - **子信息数自适应**：每个主题下 1~M 条信息均可正常渲染
-- **emoji 硬编码映射**：`card_builder.py` 内部维护 `CATEGORY_EMOJI_MAP`，上游 AI 只需输出主题名，无需关心 emoji
+- **emoji 硬编码映射**：`categories.py` 维护 `CATEGORY_EMOJI_MAP`，上游 AI 只需输出主题名，无需关心 emoji
 
 ### 7 大预设主题
 
@@ -197,7 +197,11 @@ fetcher.py (抓取) → summarizer.py (AI 总结分类) → card_builder.py (组
 ├── .venv/                      # Python 虚拟环境（由 uv 创建）
 ├── requirements.txt            # 项目依赖
 ├── send_card.py                # 主程序：CLI 静态卡片发送器
-├── card_builder.py             # 动态卡片构建与发送器
+├── card_builder.py             # 动态卡片构建器（纯函数）
+├── feishu_client.py            # 飞书 Webhook 传输层
+├── categories.py               # 主题与 emoji 映射
+├── examples/
+│   └── preview_ai_daily.py     # AI Daily 卡片示例与预览入口
 ├── fetcher.py                  # 信息抓取器（接口预留，待接入各平台爬虫）
 ├── summarizer.py               # 信息总结器（接口预留，待接入 AI）
 ├── lesson.md                   # 飞书卡片实战经验总结
