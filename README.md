@@ -1,11 +1,13 @@
 # Feishu Card Sender
 
-通过飞书 Webhook 发送多种类型的卡片消息。支持模板化管理和命令行快速发送。
+通过飞书 Webhook 发送多种类型的卡片消息。支持模板化管理和命令行快速发送，以及基于代码动态组装的 AI 资讯卡片推送。
 
 ## 已实现功能
 
 - **多模板卡片发送**：内置文本、Markdown、模板卡片、旅游推荐、AI 资讯等多种卡片
-- **动态模板加载**：所有卡片模板存放于 `cards/` 目录，程序启动时自动扫描加载，无需修改代码即可增删模板
+- **动态模板加载**：所有静态卡片模板存放于 `cards/` 目录，程序启动时自动扫描加载，无需修改代码即可增删模板
+- **动态卡片构建**：通过 `card_builder.py` 按平台、时间范围、主题动态组装飞书卡片，主题数量和子信息数完全自适应
+- **AI 资讯工作流**：已预留 `fetcher.py`（信息抓取器）和 `summarizer.py`（信息总结器）的标准接口，未来可直接接入 AI 自动化流程
 - **灵活的命令行参数**：支持选择模板、加载外部 JSON、自定义 Webhook、简单变量覆盖等
 - **虚拟环境管理**：使用 `uv` 进行 Python 虚拟环境创建和依赖安装
 
@@ -40,7 +42,7 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 
 ## 使用方法
 
-### 发送卡片
+### 发送静态模板卡片
 
 ```powershell
 # 使用默认模板（从 .env 读取 webhook）
@@ -56,7 +58,7 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 .venv\Scripts\python.exe send_card.py --template text --webhook https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx
 ```
 
-### 查看所有可用模板
+### 查看所有可用静态模板
 
 ```powershell
 .venv\Scripts\python.exe send_card.py --list
@@ -70,7 +72,20 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 
 > 注：`--var` 目前仅支持对 `payload` 顶层、`card` 层或 `content` 层的字符串值进行简单替换。
 
-## 内置模板
+### 运行动态 AI Daily 卡片构建器
+
+```powershell
+# 运行示例（会发送示例数据到配置的 webhook）
+.venv\Scripts\python.exe card_builder.py
+```
+
+`card_builder.py` 会生成三个预览文件用于调试：
+- `preview_ai_daily_x.json`
+- `preview_ai_daily_jike.json`
+- `preview_ai_daily_hn.json`
+- `preview_ai_daily_cross.json`
+
+## 内置静态模板
 
 | 模板名 | 说明 |
 |--------|------|
@@ -79,8 +94,10 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 | `markdown` | Markdown 富文本卡片 |
 | `travel` | 西湖旅游推荐卡片 |
 | `feishu-card` | 五条 AI Daily 资讯卡片（静态内容版） |
+| `task-report` | 任务详情报告卡片（带 collapsible_panel） |
+| `ai-daily` | AI 资讯动态卡片（视觉结构参考，实际由 `card_builder.py` 动态组装） |
 
-## 新增模板注意事项
+## 新增静态模板注意事项
 
 1. **必须是完整的 Webhook Payload**
    - `cards/` 目录中的 JSON 文件最外层必须包含 `msg_type` 和 `card`，例如：
@@ -110,18 +127,83 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 5. **图片资源需有效**
    - 若模板中引用了 `img_key`，请确保图片已上传到该机器人/应用所在的飞书租户，否则图片区域会显示裂图。
 
+## 动态卡片架构（推荐用于 AI 资讯推送）
+
+对于需要按不同平台、不同时间间隔、不同主题数量动态生成的卡片，建议使用 `card_builder.py` 动态组装，而非修改静态 JSON 文件。
+
+### 数据流
+
+```
+fetcher.py (抓取) → summarizer.py (AI 总结分类) → card_builder.py (组装+发送)
+```
+
+### `card_builder.py` 核心能力
+
+- **平台差异化**：支持 `X`、`即刻`、`HackerNews` 等不同平台，标题自动显示平台名
+- **时间范围自适应**：支持 1 小时、2 小时、24 小时等任意间隔，自动处理跨天场景
+  - 同一天：`2026.04.17 16 - 17`
+  - 跨天：`2026.04.17 23 - 2026.04.18 01`
+- **主题数量自适应**：上游返回几个主题，卡片就生成几个 `collapsible_panel`（0~N 个）
+- **子信息数自适应**：每个主题下 1~M 条信息均可正常渲染
+- **emoji 硬编码映射**：`card_builder.py` 内部维护 `CATEGORY_EMOJI_MAP`，上游 AI 只需输出主题名，无需关心 emoji
+
+### 7 大预设主题
+
+| 主题 | emoji |
+|:---|:---|
+| 大厂&融资 | 🏢 |
+| 模型&论文 | 🧠 |
+| 产品&开源 | 🛠️ |
+| 编程&架构 | 💻 |
+| 增长&自媒体 | 📈 |
+| 独立开发 | 🚀 |
+| 观点&争议 | 💬 |
+
+### 上游约定
+
+`fetcher.py` 输出原始文章列表，`summarizer.py` 调用 AI 后输出如下结构：
+
+```python
+[
+    {
+        "name": "大厂&融资",
+        "summary": "科技巨头新一轮融资潮涌动...",
+        "items": [
+            {
+                "title": "某 AI 独角兽完成 10 亿美元融资",
+                "summary": "估值突破 300 亿美元",
+                "source": "Bloomberg",
+                "url": "https://..."
+            }
+        ]
+    }
+]
+```
+
+> 注意：若某主题无文章，则**不应出现在列表中**；AI 输出也**不需要包含 emoji**。
+
 ## 项目结构
 
 ```text
 .
-├── cards/                  # 卡片模板目录
+├── cards/                      # 静态卡片模板目录
+│   ├── ai-daily.json           # AI 资讯卡片（视觉参考，供静态加载测试）
 │   ├── default.json
 │   ├── feishu-card.json
 │   ├── markdown.json
+│   ├── task-report.json
 │   ├── text.json
 │   └── travel.json
-├── .venv/                  # Python 虚拟环境（由 uv 创建）
-├── requirements.txt        # 项目依赖
-├── send_card.py            # 主程序：CLI 卡片发送器
-└── README.md               # 本文件
+├── .venv/                      # Python 虚拟环境（由 uv 创建）
+├── requirements.txt            # 项目依赖
+├── send_card.py                # 主程序：CLI 静态卡片发送器
+├── card_builder.py             # 动态卡片构建与发送器
+├── fetcher.py                  # 信息抓取器（接口预留，待接入各平台爬虫）
+├── summarizer.py               # 信息总结器（接口预留，待接入 AI）
+├── lesson.md                   # 飞书卡片实战经验总结
+└── README.md                   # 本文件
 ```
+
+## 经验参考
+
+项目开发过程中积累的飞书卡片兼容性经验（如 schema 2.0 不支持 `background_style`、`action` 包装层等）已整理在 `lesson.md` 中，可供后续开发参考。
