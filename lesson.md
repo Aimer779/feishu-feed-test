@@ -30,6 +30,14 @@
 
 应删除这些字段，只保留 `expanded`、`header`、`elements`、`padding` 等标准字段。
 
+**进一步验证**：即使把背景色放在 `elements` 内部的子组件上，飞书同样拒绝：
+
+- `container` → 报 `not support tag: container`
+- `div` → 报 `unknown property: background_color`
+- `column` → 报 `unknown property: background_color`
+
+结论：在保留折叠能力的前提下，**header 和 content 无法分别设置背景色**。
+
 ---
 
 ## 3. 按钮不要用 `action` 包装
@@ -56,6 +64,8 @@
 - 遇到限流不要慌，**等待 1-2 分钟**再重试。
 - 频繁调试时，建议每次发送间隔几秒以上。
 
+**观察**：连续发送约 7-8 条消息后容易触发限流。
+
 ---
 
 ## 5. 注册模板零代码
@@ -67,6 +77,21 @@
 3. 运行 `--template xxx` 发送
 
 无需修改 `send_card.py` 任何代码。
+
+---
+
+## 6. f-string 中嵌入 JSON 示例的花括号陷阱
+
+**问题**：把带 `{}` 的 JSON 示例写入 `f"""` 字符串时，Python 会将其解析为格式占位符，触发 `ValueError: Invalid format specifier`。  
+**解决**：改用普通字符串拼接，或把 `{}` 转义为 `{{` `}}`。
+
+---
+
+## 7. `mock_articles` 中的 `platform` 字段是冗余的
+
+**问题**：`summarizer/fixtures.py` 的 mock 数据里每条都写了 `"platform": "X"`，但实际从未被读取。  
+**原因**：`summarizer` 从不读取 article 对象里的 `platform`，平台信息完全靠调用方通过 `platform` 参数传入 prompt。  
+**解决**：mock 数据可以删除 `platform` 字段，保持简洁。
 
 ---
 
