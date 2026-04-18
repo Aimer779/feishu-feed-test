@@ -1,6 +1,6 @@
 import json
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fetcher import fetch_hn
 from sender import WEBHOOK_URL, build_ai_daily_card, send_card
@@ -21,13 +21,14 @@ def main():
     print(f"Generated {len(categories)} categories, {item_total} items total")
 
     print("\nStep 3: card_builder -> payload")
-    end_time = datetime.now()
-    start_time = end_time - timedelta(hours=hours)
+    utc_now = datetime.now(timezone.utc)
+    cn_tz = timezone(timedelta(hours=8))
+    start_time_utc = utc_now - timedelta(hours=hours)
     payload = build_ai_daily_card(
         categories,
         platform="HackerNews",
-        start_time=start_time,
-        end_time=end_time,
+        start_time=start_time_utc.astimezone(cn_tz),
+        end_time=utc_now.astimezone(cn_tz),
     )
 
     preview_path = "tmp/test_hn_preview.json"

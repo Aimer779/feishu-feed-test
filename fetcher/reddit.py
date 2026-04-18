@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_ACTOR_ID = "trudax/reddit-scraper"
+_ACTOR_ID = "trudax/reddit-scraper-lite"
 _PLATFORM = "Reddit"
 
 _DEFAULT_SUBREDDITS = [
