@@ -1,6 +1,6 @@
 """飞书 Webhook 传输层。
 
-负责加载 FEISHU_WEBHOOK_URL 与实际发送 payload，card_builder 保持纯函数、不依赖 IO。
+负责实际发送 payload 到飞书 webhook，保持纯 IO 函数，不处理业务构建。
 """
 
 import os

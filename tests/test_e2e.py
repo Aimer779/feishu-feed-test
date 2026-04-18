@@ -2,8 +2,7 @@ import json
 import sys
 from datetime import datetime
 
-from card_builder import build_ai_daily_card
-from feishu_client import WEBHOOK_URL, send_card
+from sender import WEBHOOK_URL, build_ai_daily_card, send_card
 from summarizer.core import summarize
 from summarizer.fixtures import mock_articles
 
@@ -24,7 +23,7 @@ def main():
         end_time=now,
     )
 
-    preview_path = "test_send_preview.json"
+    preview_path = "tmp/test_send_preview.json"
     with open(preview_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
     print(f"Preview saved to: {preview_path}")

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "大厂&融资",
+    "summary": "头部机构重仓押注基础模型赛道，独角兽估值规模持续攀升。",
+    "items": [
+      {
+        "title": "AI 独角兽完成 10 亿美元 C 轮融资",
+        "summary": "红杉与软银联合领投该轮融资；公司最新估值已突破 300 亿美元；资金将专项用于下一代基础模型训练 [techcrunch](https://example.com/a1), [bloomberg](https://example.com/a2)。"
+      }
+    ]
+  },
+  {
+    "name": "模型&论文",
+    "summary": "模型长文本处理能力大幅跃升，推理架构优化成学术新焦点。",
+    "items": [
+      {
+        "title": "DeepMind 发布新长文本推理架构",
+        "summary": "该架构支持将上下文窗口扩展至 400 万 token；同时实现推理速度翻倍，显著降低超长序列处理成本 [arxiv](https://arxiv.org/abs/xxxx)。"
+      }
+    ]
+  },
+  {
+    "name": "独立开发",
+    "summary": "轻量级 AI 垂直工具快速验证需求，个人开发者变现路径跑通。",
+    "items": [
+      {
+        "title": "独立开发者推出 AI 浏览器插件月收破万美元",
+        "summary": "作者耗时两周完成会议自动总结类 MVP；产品上线后迅速登顶 Product Hunt 并实现稳定盈利 [indiehackers](https://example.com/a4)。"
+      }
+    ]
+  },
+  {
+    "name": "观点&争议",
+    "summary": "AI 对开发者职业路径的冲击引发行业激烈讨论与立场分化。",
+    "items": [
+      {
+        "title": "业界热议大模型是否将取代初级程序员",
+        "summary": "多位从业者围绕 AI 辅助编程对初级岗位的替代效应展开交锋；不同阵营均结合一线工作流给出对立论据 [hn](https://example.com/a5)。"
+      }
+    ]
+  }
+]

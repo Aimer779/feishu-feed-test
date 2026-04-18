@@ -10,10 +10,7 @@ from pathlib import Path
 
 import requests
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from card_builder import build_ai_daily_card
-from feishu_client import WEBHOOK_URL, send_card
+from sender import WEBHOOK_URL, build_ai_daily_card, send_card
 
 
 SAMPLE_CATEGORIES = [
@@ -87,7 +84,7 @@ SAMPLE_CATEGORIES = [
 
 
 def _save_preview(payload: dict, filename: str):
-    preview_path = Path(__file__).resolve().parent.parent / filename
+    preview_path = Path(__file__).resolve().parent.parent / "tmp" / filename
     preview_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Preview saved to: {preview_path}")
 

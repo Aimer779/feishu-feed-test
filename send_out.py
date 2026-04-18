@@ -3,8 +3,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from card_builder import build_ai_daily_card
-from feishu_client import send_card
+from sender import build_ai_daily_card, send_card
 
 # 加载 out.json
 data = json.loads(Path("out.json").read_text(encoding="utf-8"))

@@ -16,3 +16,6 @@ cards/
 backup/
 
 test-file/
+
+# Temporary outputs
+tmp/
