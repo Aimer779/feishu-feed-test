@@ -7,7 +7,7 @@
 - **多模板卡片发送**：内置文本、Markdown、模板卡片、旅游推荐、AI 资讯等多种卡片
 - **动态模板加载**：所有静态卡片模板存放于 `cards/` 目录，程序启动时自动扫描加载，无需修改代码即可增删模板
 - **动态卡片构建**：通过 `sender` 包按平台、时间范围、主题动态组装飞书卡片，主题数量和子信息数完全自适应
-- **AI 资讯工作流**：已预留 `fetcher.py`（信息抓取器）、`summarizer`（信息总结器）和 `sender`（消息发送器）的标准接口，未来可直接接入 AI 自动化流程
+- **AI 资讯工作流**：`fetcher`（信息抓取器，HackerNews 已接入，X/即刻/Reddit 待接入）、`summarizer`（信息总结器）、`sender`（消息发送器）三层已打通，可端到端自动生成并推送 AI 资讯卡片
 - **灵活的命令行参数**：支持选择模板、加载外部 JSON、自定义 Webhook、简单变量覆盖等
 - **虚拟环境管理**：使用 `uv` 进行 Python 虚拟环境创建和依赖安装
 
@@ -88,6 +88,13 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 .venv\Scripts\python.exe -m summarizer
 ```
 
+### 调试 HackerNews 抓取
+
+```powershell
+# 抓取 24h 内分数 >= 50 的热门 story,打印前 3 条
+.venv\Scripts\python.exe -m fetcher.hn
+```
+
 `examples/preview_ai_daily.py` 会生成四个预览文件用于调试：
 - `preview_ai_daily_x.json`
 - `preview_ai_daily_jike.json`
@@ -105,7 +112,11 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 ### 端到端链路测试（summarizer → card_builder → 发送）
 
 ```powershell
+# mock 文章版
 .venv\Scripts\python.exe tests\test_e2e.py
+
+# 真实 HN 抓取版（fetch_hn → summarize → build → send）
+.venv\Scripts\python.exe tests\test_hn_e2e.py
 ```
 
 ## 内置静态模板
@@ -157,7 +168,7 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 ### 数据流
 
 ```
-fetcher.py (抓取) → summarizer (AI 总结分类) → sender (组装+发送)
+fetcher/ (抓取) → summarizer (AI 总结分类) → sender (组装+发送)
 ```
 
 ### `sender.builder` 核心能力
@@ -184,7 +195,7 @@ fetcher.py (抓取) → summarizer (AI 总结分类) → sender (组装+发送)
 
 ### 上游约定
 
-`fetcher.py` 输出原始文章列表，`summarizer` 调用 AI 后输出如下结构：
+`fetcher/` 各平台模块输出原始文章列表，`summarizer` 调用 AI 后输出如下结构：
 
 ```python
 [
@@ -230,15 +241,18 @@ fetcher.py (抓取) → summarizer (AI 总结分类) → sender (组装+发送)
 │   ├── prompt.py               # SYSTEM_PROMPT
 │   ├── schema.py               # RESPONSE_SCHEMA + CATEGORIES_ENUM
 │   └── fixtures.py             # mock_articles()
+├── fetcher/                    # 信息抓取器（包，按平台拆文件）
+│   ├── __init__.py             # 导出 fetch_hn()
+│   └── hn.py                   # HackerNews 抓取（Algolia Search API）
 ├── tests/
-│   └── test_e2e.py             # 端到端链路测试
+│   ├── test_e2e.py             # mock 文章端到端
+│   └── test_hn_e2e.py          # 真实 HN 抓取端到端
 ├── examples/
 │   └── preview_ai_daily.py     # AI Daily 卡片示例与预览入口
 ├── .venv/                      # Python 虚拟环境（由 uv 创建）
 ├── requirements.txt            # 项目依赖
 ├── send_out.py                 # 从外部数据文件直接发送卡片
 ├── categories.py               # 主题与 emoji 映射
-├── fetcher.py                  # 信息抓取器（接口预留，待接入各平台爬虫）
 ├── tmp/                        # 临时输出目录（预览文件、测试产物，已加入 .gitignore）
 ├── lesson.md                   # 飞书卡片实战经验总结
 └── README.md                   # 本文件

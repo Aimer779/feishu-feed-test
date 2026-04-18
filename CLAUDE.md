@@ -32,17 +32,23 @@ uv pip install -r requirements.txt
 # summarizer 独立调试（读 mock 文章，打印 categories JSON）
 .venv\Scripts\python.exe -m summarizer
 
+# HackerNews 抓取调试（打印前 3 条结构化文章）
+.venv\Scripts\python.exe -m fetcher.hn
+
 # 端到端：mock 文章 → summarizer → builder → 发送
 .venv\Scripts\python.exe tests\test_e2e.py
+
+# 端到端：真实 HN 抓取 → summarizer → builder → 发送
+.venv\Scripts\python.exe tests\test_hn_e2e.py
 ```
 
 环境变量（见 `.env.example`）：`FEISHU_WEBHOOK_URL` 给发送用，`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` 给 summarizer 用。
 
-项目目前没有 pytest 等测试框架或 lint 配置，`tests/test_e2e.py` 是手动运行的端到端脚本。
+项目目前没有 pytest 等测试框架或 lint 配置，`tests/test_e2e.py` 与 `tests/test_hn_e2e.py` 都是手动运行的端到端脚本（前者用 mock 文章，后者用真实 HN 抓取）。
 
 ## 代码架构
 
-两条并行的发送路径，共享同一个飞书 Webhook。核心代码按职责拆分到两个包：`sender/`（卡片构建 + 发送 + 静态模板）和 `summarizer/`（原始文章 → categories）。
+两条并行的发送路径，共享同一个飞书 Webhook。核心代码按职责拆分到三个包：`fetcher/`（各平台抓取）、`summarizer/`（原始文章 → categories）、`sender/`（卡片构建 + 发送 + 静态模板）。
 
 1. **静态模板路径 —— `sender` 包 + `cards/`**
    - 入口：`python -m sender`（见 `sender/__main__.py`），复用 `sender/templates.py` 的 `load_templates()` 扫描 `cards/*.json`，文件名（去掉后缀）即 `--template` 参数值。
@@ -62,11 +68,13 @@ uv pip install -r requirements.txt
 ### 数据流水线
 
 ```
-fetcher.py  →  summarizer/  →  sender/builder.py  →  sender/core.py
+fetcher/   →  summarizer/  →  sender/builder.py  →  sender/core.py
 (按平台周期抓取) (AI 主题分类+摘要)   (组装 payload)       (发送到 webhook)
 ```
 
-- `fetcher.py` 目前**仅有 docstring 规范**，没有实现体。新增实现需遵守文件头约定：输出带 `platform / title / url / content / author / published_at` 的原始文章列表。
+- `fetcher/` 按平台拆文件，统一输出带 `platform / title / url / content / author / published_at` 的原始文章列表，喂给 `summarizer.summarize()`。
+  - `fetcher/hn.py::fetch_hn(hours=24, min_score=50, limit=30)` 已实现：走 Algolia HN Search API（`hn.algolia.com/api/v1/search`），一次请求按 `points` 和 `created_at_i` 过滤，不抓外链正文，`content` 字段直接填 `title`（先跑通链路，后续摘要质量不够再升级到 `trafilatura` 抽原文）。Ask/Show HN 帖子 url 为 null 时会 fallback 到 `news.ycombinator.com/item?id={id}`。
+  - X / Reddit / 即刻尚未接入：X 计划用 Apify `apidojo/tweet-scraper`（$0.15/1k tweets，需订阅付费套餐），Reddit 用官方 API+PRAW，即刻需要自行逆向 `api.ruguoapp.com` 签名。
 - `summarizer/` 已是完整实现：`core.summarize(articles, platform)` 走 OpenAI 兼容 API（`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`），以 `summarizer/prompt.py` 的 system prompt + `summarizer/schema.py` 的 `response_format={"type": "json_schema"}` 约束结构，返回 `[{name, summary, items: [{title, summary}]}]`，即 `build_ai_daily_card` 期望的 `categories` 参数。空 items 的主题会被过滤掉。
 - `summarizer/fixtures.py::mock_articles()` 提供可直接喂给 `summarize` 的样例文章，`python -m summarizer` 会用它跑一遍并打印 JSON。
 - 平台抓取周期约定：X 1 小时、即刻 2 小时、HackerNews 24 小时。
@@ -75,4 +83,5 @@ fetcher.py  →  summarizer/  →  sender/builder.py  →  sender/core.py
 
 - **新静态模板**：放入 `cards/`，保持完整 payload 格式；新增后用 `python -m sender --list` 验证是否被正确加载（解析失败会直接使程序退出）。引用的 `img_key` 需上传到对应飞书租户。
 - **扩展动态卡片的主题**：同时更新 `categories.py` 的 `CATEGORY_EMOJI_MAP` 与 README 中的主题表，保持两处一致；`summarizer/schema.py` 的枚举和 `summarizer/prompt.py` 里的主题说明由前者派生/同步，新增主题时记得在 prompt 里补上对应的说明。
+- **新增平台 fetcher**：在 `fetcher/` 下新建 `<platform>.py`，暴露一个返回 `list[dict]` 的抓取函数，字段严格对齐 `platform / title / url / content / author / published_at`；在 `fetcher/__init__.py` 里 re-export，并加一个 `if __name__ == "__main__":` 的独立调试入口（参考 `fetcher/hn.py`）。平台依赖（如 Apify client、PRAW）按需加入 `requirements.txt`。
 - **调试卡片视觉**：`examples/preview_ai_daily.py` 运行会在 `tmp/` 下写出 `preview_ai_daily_*.json`，可用作不发送情况下的 payload 校对（历史预览文件保留在 `test-file/`，`backup/` 保留 AI Daily 卡片的演进版本）。
