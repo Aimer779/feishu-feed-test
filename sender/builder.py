@@ -66,6 +66,8 @@ def build_ai_daily_card(
             },
             "body": {
                 "direction": "vertical",
+                "vertical_spacing": "12px",
+                "padding": "8px 12px 12px 12px",
                 "elements": [],
             },
         },
@@ -84,21 +86,22 @@ def build_ai_daily_card(
         emoji = CATEGORY_EMOJI_MAP.get(cat["name"], "")
         panel = {
             "tag": "collapsible_panel",
-            "expanded": idx == 0,
+            "expanded": False,
             "header": {
                 "title": {
                     "tag": "markdown",
-                    "content": f"**{emoji} {cat['name'].replace('&', ' & ')}：{cat['summary']}**",
+                    "content": f"**{emoji} {cat['name'].replace('&', ' & ')}：{cat['summary'].rstrip('。')}**",
                 },
                 "icon": {
                     "tag": "standard_icon",
-                    "token": "down-small-ccm_outlined",
+                    "token": "down-round_outlined",
                 },
                 "icon_position": "right",
                 "icon_expanded_angle": -180,
             },
-            "vertical_spacing": "8px",
-            "padding": "8px 12px",
+            "vertical_spacing": "10px",
+            "padding": "12px 16px",
+            "background_color": "grey-50",
             "elements": [
                 {"tag": "markdown", "content": lines}
             ],
