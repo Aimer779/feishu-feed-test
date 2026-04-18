@@ -7,7 +7,7 @@
 - **多模板卡片发送**：内置文本、Markdown、模板卡片、旅游推荐、AI 资讯等多种卡片
 - **动态模板加载**：所有静态卡片模板存放于 `cards/` 目录，程序启动时自动扫描加载，无需修改代码即可增删模板
 - **动态卡片构建**：通过 `card_builder.py` 按平台、时间范围、主题动态组装飞书卡片，主题数量和子信息数完全自适应
-- **AI 资讯工作流**：已预留 `fetcher.py`（信息抓取器）和 `summarizer.py`（信息总结器）的标准接口，未来可直接接入 AI 自动化流程
+- **AI 资讯工作流**：已预留 `fetcher.py`（信息抓取器）和 `summarizer`（信息总结器）的标准接口，未来可直接接入 AI 自动化流程
 - **灵活的命令行参数**：支持选择模板、加载外部 JSON、自定义 Webhook、简单变量覆盖等
 - **虚拟环境管理**：使用 `uv` 进行 Python 虚拟环境创建和依赖安装
 
@@ -79,11 +79,31 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 .venv\Scripts\python.exe examples\preview_ai_daily.py
 ```
 
+### 测试 summarizer（调用 LLM 并输出 JSON）
+
+```powershell
+.venv\Scripts\python.exe -m summarizer
+```
+
 `examples/preview_ai_daily.py` 会生成四个预览文件用于调试：
 - `preview_ai_daily_x.json`
 - `preview_ai_daily_jike.json`
 - `preview_ai_daily_hn.json`
 - `preview_ai_daily_cross.json`
+
+### 从外部数据文件发送卡片
+
+如果你有预处理好的 categories 数据（如 `out.json`），可直接发送：
+
+```powershell
+.venv\Scripts\python.exe send_out.py
+```
+
+### 端到端链路测试（summarizer → card_builder → 发送）
+
+```powershell
+.venv\Scripts\python.exe tests\test_e2e.py
+```
 
 ## 内置静态模板
 
@@ -134,7 +154,7 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 ### 数据流
 
 ```
-fetcher.py (抓取) → summarizer.py (AI 总结分类) → card_builder.py (组装+发送)
+fetcher.py (抓取) → summarizer (AI 总结分类) → card_builder.py (组装+发送)
 ```
 
 ### `card_builder.py` 核心能力
@@ -161,7 +181,7 @@ fetcher.py (抓取) → summarizer.py (AI 总结分类) → card_builder.py (组
 
 ### 上游约定
 
-`fetcher.py` 输出原始文章列表，`summarizer.py` 调用 AI 后输出如下结构：
+`fetcher.py` 输出原始文章列表，`summarizer` 调用 AI 后输出如下结构：
 
 ```python
 [
@@ -171,9 +191,7 @@ fetcher.py (抓取) → summarizer.py (AI 总结分类) → card_builder.py (组
         "items": [
             {
                 "title": "某 AI 独角兽完成 10 亿美元融资",
-                "summary": "估值突破 300 亿美元",
-                "source": "Bloomberg",
-                "url": "https://..."
+                "summary": "据 [Bloomberg](https://...) 报道，估值突破 300 亿美元。"
             }
         ]
     }
@@ -194,16 +212,25 @@ fetcher.py (抓取) → summarizer.py (AI 总结分类) → card_builder.py (组
 │   ├── task-report.json
 │   ├── text.json
 │   └── travel.json
+├── summarizer/                 # 信息总结器（包）
+│   ├── __init__.py             # 导出 summarize()
+│   ├── __main__.py             # CLI 入口 (python -m summarizer)
+│   ├── core.py                 # summarize() + _render_user_prompt()
+│   ├── prompt.py               # SYSTEM_PROMPT
+│   ├── schema.py               # RESPONSE_SCHEMA + CATEGORIES_ENUM
+│   └── fixtures.py             # mock_articles()
+├── tests/
+│   └── test_e2e.py             # 端到端链路测试
 ├── .venv/                      # Python 虚拟环境（由 uv 创建）
 ├── requirements.txt            # 项目依赖
 ├── send_card.py                # 主程序：CLI 静态卡片发送器
+├── send_out.py                 # 从外部数据文件直接发送卡片
 ├── card_builder.py             # 动态卡片构建器（纯函数）
 ├── feishu_client.py            # 飞书 Webhook 传输层
 ├── categories.py               # 主题与 emoji 映射
 ├── examples/
 │   └── preview_ai_daily.py     # AI Daily 卡片示例与预览入口
 ├── fetcher.py                  # 信息抓取器（接口预留，待接入各平台爬虫）
-├── summarizer.py               # 信息总结器（接口预留，待接入 AI）
 ├── lesson.md                   # 飞书卡片实战经验总结
 └── README.md                   # 本文件
 ```
