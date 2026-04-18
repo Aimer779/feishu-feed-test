@@ -13,3 +13,10 @@ CATEGORY_EMOJI_MAP = {
     "独立开发": "🚀",
     "观点&争议": "💬",
 }
+
+PLATFORM_COLOR_MAP = {
+    "X": "wathet",
+    "即刻": "yellow",
+    "HackerNews": "orange",
+    "Reddit": "red",
+}

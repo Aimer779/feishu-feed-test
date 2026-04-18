@@ -11,14 +11,14 @@ def main():
 
     print("Step 1: summarizer -> categories")
     articles = mock_articles()
-    categories = summarize(articles, platform="X")
+    categories = summarize(articles, platform="Reddit")
     print(f"Generated {len(categories)} categories, {sum(len(c.get('items', [])) for c in categories)} items total")
 
     print("\nStep 2: card_builder -> payload")
     now = datetime.now()
     payload = build_ai_daily_card(
         categories,
-        platform="X",
+        platform="Reddit",
         start_time=now,
         end_time=now,
     )

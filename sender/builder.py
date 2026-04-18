@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from categories import CATEGORY_EMOJI_MAP
+from categories import CATEGORY_EMOJI_MAP, PLATFORM_COLOR_MAP
 
 
 def format_time_range(start_time: datetime, end_time: datetime) -> str:
@@ -61,7 +61,7 @@ def build_ai_daily_card(
                     "content": f"{platform} | {total_items} 条 | {time_range}",
                 },
                 "subtitle": {"tag": "plain_text", "content": ""},
-                "template": "orange",
+                "template": PLATFORM_COLOR_MAP.get(platform, "orange"),
                 "padding": "12px 16px 12px 16px",
             },
             "body": {
@@ -88,7 +88,7 @@ def build_ai_daily_card(
             "header": {
                 "title": {
                     "tag": "markdown",
-                    "content": f"**{emoji}{cat['name']}：{cat['summary']}**",
+                    "content": f"**{emoji} {cat['name'].replace('&', ' & ')}：{cat['summary']}**",
                 },
                 "icon": {
                     "tag": "standard_icon",
