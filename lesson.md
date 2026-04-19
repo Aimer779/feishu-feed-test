@@ -76,7 +76,7 @@
 2. 运行 `--list` 验证加载
 3. 运行 `--template xxx` 发送
 
-无需修改 `send_card.py` 任何代码。
+无需修改 `sender/core.py` 任何代码。
 
 ---
 

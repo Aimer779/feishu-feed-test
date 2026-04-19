@@ -64,7 +64,7 @@ def fetch_x(
             - 传空列表 [] → 不抓搜索
             - 支持 Twitter 高级搜索语法，会自动拼接 since/until 时间窗口
         min_favorites: handles 来源的最低点赞门槛（默认 5，官方号公告初期赞可能不多）。
-        search_min_favorites: search_terms 来源的最低点赞门槛（默认 15）。
+        search_min_favorites: search_terms 来源的最低点赞门槛（默认 25）。
         handle_limit: handles 模式的最大返回条数。
         search_limit: 每个搜索词的最大返回条数。
     """

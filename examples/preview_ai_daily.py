@@ -1,6 +1,6 @@
 """AI Daily 卡片预览/调试入口。
 
-运行后会在项目根目录写出多份 preview_ai_daily_*.json，并向 FEISHU_WEBHOOK_URL 发送其中一份示例。
+运行后会在 tmp/ 目录下写出多份 preview_ai_daily_*.json，并向 FEISHU_WEBHOOK_URL 发送其中一份示例。
 """
 
 import json

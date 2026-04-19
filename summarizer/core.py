@@ -5,7 +5,6 @@ from typing import Any
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from .fixtures import mock_articles
 from .prompt import SYSTEM_PROMPT
 from .schema import RESPONSE_SCHEMA
 
@@ -40,8 +39,8 @@ def summarize(
 ) -> list[dict]:
     """把一批原始文章压缩成 categories 结构。
 
-    articles: fetcher.py 输出的原始文章列表。
-    platform: 平台名(如 "X" / "即刻" / "HackerNews"),会注入到 prompt 与 source 提示中。
+    articles: fetcher/ 各模块输出的原始文章列表。
+    platform: 平台名(如 "X" / "Reddit" / "HackerNews"),会注入到 prompt 与 source 提示中。
     model / base_url / api_key: 不传则从 .env 读 LLM_MODEL / LLM_BASE_URL / LLM_API_KEY。
     返回值可直接作为 card_builder.build_ai_daily_card 的 categories 参数。
     """

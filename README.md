@@ -208,25 +208,11 @@ export FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 - `Reddit`：每 2 小时检查一次，抓取近 2 小时内容
 - `HackerNews`：每天中国时区 `13:10` 检查一次，抓取近 24 小时内容
 
-`examples/preview_ai_daily.py` 会生成四个预览文件用于调试：
-- `preview_ai_daily_x.json`
-- `preview_ai_daily_jike.json`
-- `preview_ai_daily_hn.json`
-- `preview_ai_daily_cross.json`
-
-### 从外部数据文件发送卡片
-
-如果你有预处理好的 categories 数据（如 `out.json`），可直接发送：
-
-**Windows (PowerShell)**
-```powershell
-.venv\Scripts\python.exe send_out.py
-```
-
-**Linux / macOS**
-```bash
-.venv/bin/python send_out.py
-```
+`examples/preview_ai_daily.py` 会生成四个预览文件到 `tmp/` 目录用于调试：
+- `tmp/preview_ai_daily_x.json`
+- `tmp/preview_ai_daily_jike.json`
+- `tmp/preview_ai_daily_hn.json`
+- `tmp/preview_ai_daily_cross.json`
 
 ### 端到端链路测试（summarizer → card_builder → 发送）
 
@@ -399,7 +385,6 @@ fetcher/ (抓取) → summarizer (AI 总结分类) → sender (组装+发送)
 │   └── preview_ai_daily.py     # AI Daily 卡片示例与预览入口
 ├── .venv/                      # Python 虚拟环境（由 uv 创建）
 ├── requirements.txt            # 项目依赖
-├── send_out.py                 # 从外部数据文件直接发送卡片
 ├── delivery.py                 # 平台调度配置与发送历史去重
 ├── categories.py               # 主题与 emoji 映射
 ├── tmp/                        # 临时输出目录（预览文件、测试产物，已加入 .gitignore）

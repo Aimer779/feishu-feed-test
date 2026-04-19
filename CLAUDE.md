@@ -11,48 +11,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 项目使用 [uv](https://github.com/astral-sh/uv) 管理虚拟环境。Webhook 地址从 `.env` 的 `FEISHU_WEBHOOK_URL` 读取。
 
-```powershell
+```bash
 # 初始化
 uv venv
 uv pip install -r requirements.txt
 
 # 静态模板发送（CLI 入口 = sender 包）
-.venv\Scripts\python.exe -m sender --list
-.venv\Scripts\python.exe -m sender --template travel
-.venv\Scripts\python.exe -m sender --file my-card.json
-.venv\Scripts\python.exe -m sender --template text --var "text=自定义"
-.venv\Scripts\python.exe -m sender --mock          # 使用内置 mock payload 调试
+# Windows: .venv\Scripts\python.exe -m sender ...
+# Linux/macOS: .venv/bin/python -m sender ...
+.venv/bin/python -m sender --list
+.venv/bin/python -m sender --template travel
+.venv/bin/python -m sender --file my-card.json
+.venv/bin/python -m sender --template text --var "text=自定义"
+.venv/bin/python -m sender --mock          # 使用内置 mock payload 调试
 
 # 动态 AI Daily 卡片预览（在 tmp/ 下写出 preview_ai_daily_*.json 并发送其中一份示例）
-.venv\Scripts\python.exe examples\preview_ai_daily.py
-
-# 从已生成的 out.json 直接发送一条 AI Daily
-.venv\Scripts\python.exe send_out.py
+.venv/bin/python examples/preview_ai_daily.py
 
 # summarizer 独立调试（读 mock 文章，打印 categories JSON）
-.venv\Scripts\python.exe -m summarizer
+.venv/bin/python -m summarizer
 
 # HackerNews 抓取调试（打印前 3 条结构化文章）
-.venv\Scripts\python.exe -m fetcher.hn
+.venv/bin/python -m fetcher.hn
 
 # X / Reddit 抓取调试（走 Apify，需 APIFY_API_TOKEN）
-.venv\Scripts\python.exe -m fetcher.x
-.venv\Scripts\python.exe -m fetcher.reddit
+.venv/bin/python -m fetcher.x
+.venv/bin/python -m fetcher.reddit
 
 # 按平台节奏运行定时推送（不发飞书）
-.venv\Scripts\python.exe hourly_bot.py --dry-run
-.venv\Scripts\python.exe hourly_bot.py --only x --dry-run
-.venv\Scripts\python.exe hourly_bot.py --only reddit --dry-run
-.venv\Scripts\python.exe hourly_bot.py --only hn --dry-run
-.venv\Scripts\python.exe hourly_bot.py --force --dry-run
+.venv/bin/python hourly_bot.py --dry-run
+.venv/bin/python hourly_bot.py --only x --dry-run
+.venv/bin/python hourly_bot.py --only reddit --dry-run
+.venv/bin/python hourly_bot.py --only hn --dry-run
+.venv/bin/python hourly_bot.py --force --dry-run
 
 # 端到端：mock 文章 → summarizer → builder → 发送
-.venv\Scripts\python.exe tests\test_e2e.py
+.venv/bin/python tests/test_e2e.py
 
 # 端到端：真实抓取 → summarizer → builder → 发送
-.venv\Scripts\python.exe tests\test_hn_e2e.py --dry-run
-.venv\Scripts\python.exe tests\test_x_e2e.py --dry-run
-.venv\Scripts\python.exe tests\test_reddit_e2e.py --dry-run
+.venv/bin/python tests/test_hn_e2e.py --dry-run
+.venv/bin/python tests/test_x_e2e.py --dry-run
+.venv/bin/python tests/test_reddit_e2e.py --dry-run
 ```
 
 环境变量（见 `.env.example`）：`FEISHU_WEBHOOK_URL` 给发送用，`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` 给 summarizer 用，`APIFY_API_TOKEN` 给 `fetcher/x.py` 和 `fetcher/reddit.py` 用。
@@ -76,7 +75,7 @@ uv pip install -r requirements.txt
    - `categories.CATEGORY_EMOJI_MAP` 集中维护 7 个预设主题的 emoji（大厂&融资、模型&论文、产品&开源、编程&架构、增长&自媒体、独立开发、观点&争议）；`summarizer/schema.py` 通过 `CATEGORIES_ENUM = list(CATEGORY_EMOJI_MAP.keys())` 从这里派生主题白名单并注入 JSON Schema 的 `enum`。**上游 AI 只输出主题名，不输出 emoji**；无内容的主题不应出现在列表中。
    - `format_time_range()` 自动识别同日/跨日，生成 `YYYY.MM.DD HH - HH` 或跨日格式。
    - 预览入口：`examples/preview_ai_daily.py`（内置 `SAMPLE_CATEGORIES`，写到 `tmp/preview_ai_daily_*.json`）。
-   - 生产发送入口：根目录的 `send_out.py`，从项目根的 `out.json`（summarizer 输出的 categories）读取数据并发送。
+   - 生产发送入口：`hourly_bot.py` 按平台分别抓取、总结、构卡和发送。
    - 当前标题展示规则未做平台特化：统一显示**总结后的信息条数**和**抓取时间窗**。
 
 3. **调度路径 —— `delivery.py` + `hourly_bot.py`**
@@ -107,4 +106,4 @@ fetcher/   →  summarizer/  →  sender/builder.py  →  sender/core.py
 - **扩展动态卡片的主题**：同时更新 `categories.py` 的 `CATEGORY_EMOJI_MAP` 与 README 中的主题表，保持两处一致；`summarizer/schema.py` 的枚举和 `summarizer/prompt.py` 里的主题说明由前者派生/同步，新增主题时记得在 prompt 里补上对应的说明。
 - **新增平台 fetcher**：在 `fetcher/` 下新建 `<platform>.py`，暴露一个返回 `list[dict]` 的抓取函数，字段严格对齐 `platform / title / url / content / author / published_at`；在 `fetcher/__init__.py` 里 re-export，并加一个 `if __name__ == "__main__":` 的独立调试入口（参考 `fetcher/hn.py`）。平台依赖按需加入 `requirements.txt`；目前 Apify 系（X / Reddit）统一复用 `apify-client`。
 - **调整平台节奏**：优先修改 `delivery.py`，不要把抓取窗口、发送节奏和标题展示逻辑散落到 `hourly_bot.py` 或各个 `tests/*_e2e.py` 里。
-- **调试卡片视觉**：`examples/preview_ai_daily.py` 运行会在 `tmp/` 下写出 `preview_ai_daily_*.json`，可用作不发送情况下的 payload 校对（历史预览文件保留在 `test-file/`，`backup/` 保留 AI Daily 卡片的演进版本）。
+- **调试卡片视觉**：`examples/preview_ai_daily.py` 运行会在 `tmp/` 下写出 `preview_ai_daily_*.json`，可用作不发送情况下的 payload 校对（`backup/` 保留 AI Daily 卡片的演进版本）。
