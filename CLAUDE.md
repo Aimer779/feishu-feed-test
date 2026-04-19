@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 会话约定
 
-- 启动会话时先阅读 `README.md`（来自 `AGENTS.md` 的约定）。
+- 启动会话时先阅读 `README.md`。
 - 遇到飞书卡片相关报错时，优先查阅 `lesson.md`，其中记录了 schema 2.0 的兼容性坑点（如不支持 `background_style`、`action` 包装层等）。
 
 ## 环境与常用命令

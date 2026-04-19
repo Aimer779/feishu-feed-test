@@ -1,6 +1,9 @@
 import json
 import sys
 from datetime import datetime
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sender import WEBHOOK_URL, build_ai_daily_card, send_card
 from summarizer.core import summarize

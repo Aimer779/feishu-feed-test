@@ -2,6 +2,9 @@ import argparse
 import json
 import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from delivery import get_delivery_config
 from fetcher import fetch_reddit
