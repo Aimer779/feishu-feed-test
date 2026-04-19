@@ -17,5 +17,6 @@ backup/
 
 test-file/
 
+.claude
 # Temporary outputs
 tmp/
