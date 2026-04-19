@@ -15,7 +15,7 @@
 
 项目使用 [uv](https://github.com/astral-sh/uv) 管理虚拟环境和依赖。
 
-```powershell
+```bash
 # 创建虚拟环境并安装依赖
 uv venv
 uv pip install -r requirements.txt
@@ -24,7 +24,7 @@ uv pip install -r requirements.txt
 ## 配置
 
 1. 复制环境变量模板：
-   ```powershell
+   ```bash
    cp .env.example .env
    ```
 
@@ -35,15 +35,23 @@ uv pip install -r requirements.txt
 
 3. 也可以通过环境变量直接覆盖：
 
+**Windows (PowerShell)**
 ```powershell
 $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 .venv\Scripts\python.exe -m sender
+```
+
+**Linux / macOS**
+```bash
+export FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
+.venv/bin/python -m sender
 ```
 
 ## 使用方法
 
 ### 发送静态模板卡片
 
+**Windows (PowerShell)**
 ```powershell
 # 使用默认模板（从 .env 读取 webhook）
 .venv\Scripts\python.exe -m sender
@@ -61,42 +69,93 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 .venv\Scripts\python.exe -m sender --mock
 ```
 
+**Linux / macOS**
+```bash
+# 使用默认模板（从 .env 读取 webhook）
+.venv/bin/python -m sender
+
+# 使用指定模板
+.venv/bin/python -m sender --template travel
+
+# 从外部 JSON 文件加载
+.venv/bin/python -m sender --file my-card.json
+
+# 临时覆盖 webhook 地址
+.venv/bin/python -m sender --template text --webhook https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx
+
+# 使用 mock payload 发送（用于测试）
+.venv/bin/python -m sender --mock
+```
+
 ### 查看所有可用静态模板
 
+**Windows (PowerShell)**
 ```powershell
 .venv\Scripts\python.exe -m sender --list
 ```
 
+**Linux / macOS**
+```bash
+.venv/bin/python -m sender --list
+```
+
 ### 覆盖模板变量
 
+**Windows (PowerShell)**
 ```powershell
 .venv\Scripts\python.exe -m sender --template text --var "text=自定义消息内容"
+```
+
+**Linux / macOS**
+```bash
+.venv/bin/python -m sender --template text --var "text=自定义消息内容"
 ```
 
 > 注：`--var` 目前仅支持对 `payload` 顶层、`card` 层或 `content` 层的字符串值进行简单替换。
 
 ### 运行动态 AI Daily 卡片构建器
 
+**Windows (PowerShell)**
 ```powershell
 # 运行示例（会发送示例数据到配置的 webhook）
 .venv\Scripts\python.exe examples\preview_ai_daily.py
 ```
 
+**Linux / macOS**
+```bash
+# 运行示例（会发送示例数据到配置的 webhook）
+.venv/bin/python examples/preview_ai_daily.py
+```
+
 ### 测试 summarizer（调用 LLM 并输出 JSON）
 
+**Windows (PowerShell)**
 ```powershell
 .venv\Scripts\python.exe -m summarizer
 ```
 
+**Linux / macOS**
+```bash
+.venv/bin/python -m summarizer
+```
+
 ### 调试 HackerNews 抓取
 
+**Windows (PowerShell)**
 ```powershell
 # 抓取 24h 内分数 >= 50 的热门 story,打印前 3 条
 .venv\Scripts\python.exe -m fetcher.hn
 ```
 
+**Linux / macOS**
+```bash
+# 抓取 24h 内分数 >= 50 的热门 story,打印前 3 条
+.venv/bin/python -m fetcher.hn
+```
+
 ### 调试 X / Reddit 抓取
 
+**Windows (PowerShell)**
 ```powershell
 # X：默认抓取近 24h，打印前 5 条
 .venv\Scripts\python.exe -m fetcher.x
@@ -105,8 +164,18 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 .venv\Scripts\python.exe -m fetcher.reddit
 ```
 
+**Linux / macOS**
+```bash
+# X：默认抓取近 24h，打印前 5 条
+.venv/bin/python -m fetcher.x
+
+# Reddit：默认抓取近 2h，打印前 3 条
+.venv/bin/python -m fetcher.reddit
+```
+
 ### 按平台节奏运行定时推送
 
+**Windows (PowerShell)**
 ```powershell
 # 按当前中国时区时间判断哪些平台应该执行
 .venv\Scripts\python.exe hourly_bot.py --dry-run
@@ -118,6 +187,20 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 
 # 忽略节奏限制，强制检查所有平台
 .venv\Scripts\python.exe hourly_bot.py --force --dry-run
+```
+
+**Linux / macOS**
+```bash
+# 按当前中国时区时间判断哪些平台应该执行
+.venv/bin/python hourly_bot.py --dry-run
+
+# 只调试某个平台，不发飞书
+.venv/bin/python hourly_bot.py --only x --dry-run
+.venv/bin/python hourly_bot.py --only reddit --dry-run
+.venv/bin/python hourly_bot.py --only hn --dry-run
+
+# 忽略节奏限制，强制检查所有平台
+.venv/bin/python hourly_bot.py --force --dry-run
 ```
 
 当前平台节奏：
@@ -135,12 +218,19 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 
 如果你有预处理好的 categories 数据（如 `out.json`），可直接发送：
 
+**Windows (PowerShell)**
 ```powershell
 .venv\Scripts\python.exe send_out.py
 ```
 
+**Linux / macOS**
+```bash
+.venv/bin/python send_out.py
+```
+
 ### 端到端链路测试（summarizer → card_builder → 发送）
 
+**Windows (PowerShell)**
 ```powershell
 # mock 文章版
 .venv\Scripts\python.exe tests\test_e2e.py
@@ -151,6 +241,19 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 # 真实 X / Reddit 抓取版
 .venv\Scripts\python.exe tests\test_x_e2e.py --dry-run
 .venv\Scripts\python.exe tests\test_reddit_e2e.py --dry-run
+```
+
+**Linux / macOS**
+```bash
+# mock 文章版
+.venv/bin/python tests/test_e2e.py
+
+# 真实 HN 抓取版（fetch_hn → summarize → build → send）
+.venv/bin/python tests/test_hn_e2e.py
+
+# 真实 X / Reddit 抓取版
+.venv/bin/python tests/test_x_e2e.py --dry-run
+.venv/bin/python tests/test_reddit_e2e.py --dry-run
 ```
 
 ## 内置静态模板
