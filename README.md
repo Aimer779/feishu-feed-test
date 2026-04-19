@@ -113,20 +113,6 @@ export FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 
 > 注：`--var` 目前仅支持对 `payload` 顶层、`card` 层或 `content` 层的字符串值进行简单替换。
 
-### 运行动态 AI Daily 卡片构建器
-
-**Windows (PowerShell)**
-```powershell
-# 运行示例（会发送示例数据到配置的 webhook）
-.venv\Scripts\python.exe examples\preview_ai_daily.py
-```
-
-**Linux / macOS**
-```bash
-# 运行示例（会发送示例数据到配置的 webhook）
-.venv/bin/python examples/preview_ai_daily.py
-```
-
 ### 测试 summarizer（调用 LLM 并输出 JSON）
 
 **Windows (PowerShell)**
@@ -207,12 +193,6 @@ export FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 - `X`：每 1 小时检查一次，抓取近 24 小时内容，并按发送历史去重
 - `Reddit`：每 2 小时检查一次，抓取近 2 小时内容
 - `HackerNews`：每天中国时区 `13:10` 检查一次，抓取近 24 小时内容
-
-`examples/preview_ai_daily.py` 会生成四个预览文件到 `tmp/` 目录用于调试：
-- `tmp/preview_ai_daily_x.json`
-- `tmp/preview_ai_daily_jike.json`
-- `tmp/preview_ai_daily_hn.json`
-- `tmp/preview_ai_daily_cross.json`
 
 ### 端到端链路测试（summarizer → card_builder → 发送）
 
@@ -381,8 +361,6 @@ fetcher/ (抓取) → summarizer (AI 总结分类) → sender (组装+发送)
 │   ├── test_hn_e2e.py          # 真实 HN 抓取端到端
 │   ├── test_reddit_e2e.py      # 真实 Reddit 抓取端到端
 │   └── test_x_e2e.py           # 真实 X 抓取端到端
-├── examples/
-│   └── preview_ai_daily.py     # AI Daily 卡片示例与预览入口
 ├── .venv/                      # Python 虚拟环境（由 uv 创建）
 ├── requirements.txt            # 项目依赖
 ├── delivery.py                 # 平台调度配置与发送历史去重

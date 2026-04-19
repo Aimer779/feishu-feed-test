@@ -25,9 +25,6 @@ uv pip install -r requirements.txt
 .venv/bin/python -m sender --template text --var "text=自定义"
 .venv/bin/python -m sender --mock          # 使用内置 mock payload 调试
 
-# 动态 AI Daily 卡片预览（在 tmp/ 下写出 preview_ai_daily_*.json 并发送其中一份示例）
-.venv/bin/python examples/preview_ai_daily.py
-
 # summarizer 独立调试（读 mock 文章，打印 categories JSON）
 .venv/bin/python -m summarizer
 
@@ -74,7 +71,6 @@ uv pip install -r requirements.txt
    - `sender.send_card(webhook_url, payload)`（在 `sender/core.py`）负责实际 HTTP 发送；`FEISHU_WEBHOOK_URL` 只在这里 `load_dotenv`，同时作为模块级 `WEBHOOK_URL` 导出。
    - `categories.CATEGORY_EMOJI_MAP` 集中维护 7 个预设主题的 emoji（大厂&融资、模型&论文、产品&开源、编程&架构、增长&自媒体、独立开发、观点&争议）；`summarizer/schema.py` 通过 `CATEGORIES_ENUM = list(CATEGORY_EMOJI_MAP.keys())` 从这里派生主题白名单并注入 JSON Schema 的 `enum`。**上游 AI 只输出主题名，不输出 emoji**；无内容的主题不应出现在列表中。
    - `format_time_range()` 自动识别同日/跨日，生成 `YYYY.MM.DD HH - HH` 或跨日格式。
-   - 预览入口：`examples/preview_ai_daily.py`（内置 `SAMPLE_CATEGORIES`，写到 `tmp/preview_ai_daily_*.json`）。
    - 生产发送入口：`hourly_bot.py` 按平台分别抓取、总结、构卡和发送。
    - 当前标题展示规则未做平台特化：统一显示**总结后的信息条数**和**抓取时间窗**。
 
@@ -106,4 +102,3 @@ fetcher/   →  summarizer/  →  sender/builder.py  →  sender/core.py
 - **扩展动态卡片的主题**：同时更新 `categories.py` 的 `CATEGORY_EMOJI_MAP` 与 README 中的主题表，保持两处一致；`summarizer/schema.py` 的枚举和 `summarizer/prompt.py` 里的主题说明由前者派生/同步，新增主题时记得在 prompt 里补上对应的说明。
 - **新增平台 fetcher**：在 `fetcher/` 下新建 `<platform>.py`，暴露一个返回 `list[dict]` 的抓取函数，字段严格对齐 `platform / title / url / content / author / published_at`；在 `fetcher/__init__.py` 里 re-export，并加一个 `if __name__ == "__main__":` 的独立调试入口（参考 `fetcher/hn.py`）。平台依赖按需加入 `requirements.txt`；目前 Apify 系（X / Reddit）统一复用 `apify-client`。
 - **调整平台节奏**：优先修改 `delivery.py`，不要把抓取窗口、发送节奏和标题展示逻辑散落到 `hourly_bot.py` 或各个 `tests/*_e2e.py` 里。
-- **调试卡片视觉**：`examples/preview_ai_daily.py` 运行会在 `tmp/` 下写出 `preview_ai_daily_*.json`，可用作不发送情况下的 payload 校对（`backup/` 保留 AI Daily 卡片的演进版本）。
