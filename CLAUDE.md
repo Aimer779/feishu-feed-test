@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - 启动会话时先阅读 `README.md`。
 - 遇到飞书卡片相关报错时，优先查阅 `lesson.md`，其中记录了 schema 2.0 的兼容性坑点（如不支持 `background_style`、`action` 包装层等）。
+- **运行端到端测试时，Shell timeout 必须设为至少 300 秒（5 分钟）**。`tests/test_x_e2e.py`、`tests/test_reddit_e2e.py`、`tests/test_hn_e2e.py` 和 `hourly_bot.py` 都涉及 Apify 抓取 + LLM summarization，其中 summarizer 处理 60+ 篇文章在 `qwen3.6-plus` 模型下耗时约 150~160 秒，120 秒超时必断。
 
 ## 环境与常用命令
 
