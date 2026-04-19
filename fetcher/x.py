@@ -1,15 +1,15 @@
 """X (Twitter) 抓取,基于 Apify apidojo/tweet-scraper。"""
 
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from apify_client import ApifyClient
-from dotenv import load_dotenv
 
+from config import get_env
 from contracts import RawArticle, validate_raw_articles
+from logger import get_logger
 
-load_dotenv()
+log = get_logger("fetcher.x")
 
 _ACTOR_ID = "apidojo/tweet-scraper"
 _PLATFORM = "X"
@@ -70,7 +70,7 @@ def fetch_x(
         handle_limit: handles 模式的最大返回条数。
         search_limit: 每个搜索词的最大返回条数。
     """
-    token = os.getenv("APIFY_API_TOKEN")
+    token = get_env("APIFY_API_TOKEN")
     if not token:
         raise RuntimeError("APIFY_API_TOKEN 未设置")
 
@@ -108,7 +108,7 @@ def fetch_x(
         items = _run_actor(token, run_input)
         articles = [_to_article(it) for it in items if _should_keep(it, since, until, min_favorites)]
         all_articles.extend(articles)
-        print(f"  [handles] fetched {len(items)} raw, kept {len(articles)} after filter")
+        log.info("[handles] fetched {} raw, kept {} after filter", len(items), len(articles))
 
     # 2. 抓关键词搜索（认证用户 + 独立配额 + 更高赞门槛）
     if search_terms_list:
@@ -123,7 +123,7 @@ def fetch_x(
         items = _run_actor(token, run_input)
         articles = [_to_article(it) for it in items if _should_keep(it, since, until, search_min_favorites)]
         all_articles.extend(articles)
-        print(f"  [search] fetched {len(items)} raw, kept {len(articles)} after filter")
+        log.info("[search] fetched {} raw, kept {} after filter", len(items), len(articles))
 
     # 去重 + 截断
     seen_urls = set()

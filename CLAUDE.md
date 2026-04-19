@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 环境与常用命令
 
-项目使用 [uv](https://github.com/astral-sh/uv) 管理虚拟环境。Webhook 地址从 `.env` 的 `FEISHU_WEBHOOK_URL` 读取。
+项目使用 [uv](https://github.com/astral-sh/uv) 管理虚拟环境。配置统一由 `config.py` 管理（单点 `load_dotenv()`），日志由 `logger.py` 封装（基于 loguru）。
 
 ```bash
 # 初始化
@@ -54,13 +54,18 @@ uv pip install -r requirements.txt
 .venv/bin/python tests/test_contracts.py
 ```
 
-环境变量（见 `.env.example`）：`FEISHU_WEBHOOK_URL` 给发送用，`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` 给 summarizer 用，`APIFY_API_TOKEN` 给 `fetcher/x.py` 和 `fetcher/reddit.py` 用。
+环境变量（见 `.env.example`）：`FEISHU_WEBHOOK_URL` 给发送用，`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` 给 summarizer 用，`APIFY_API_TOKEN` 给 `fetcher/x.py` 和 `fetcher/reddit.py` 用，`LOG_LEVEL` / `LOG_FILE` 控制日志级别和文件持久化（可选）。所有环境变量统一通过 `config.py` 的 `get_env()` / `require_env()` 读取，各子模块不再自行调用 `load_dotenv()`。
 
 项目目前没有 pytest 等测试框架或 lint 配置。`tests/` 下多数脚本仍是手动运行的端到端脚本；其中 `test_e2e.py` 用 mock 文章，`test_hn_e2e.py` / `test_x_e2e.py` / `test_reddit_e2e.py` 走真实抓取。新增的 `test_contracts.py` 是最小离线测试，用于验证 `fetcher -> summarizer -> builder` 的共享契约层。
 
 ## 代码架构
 
-两条并行的发送路径，共享同一个飞书 Webhook。核心代码按职责拆分到三个包：`fetcher/`（各平台抓取）、`summarizer/`（原始文章 → categories）、`sender/`（卡片构建 + 发送 + 静态模板）。主链路之间新增了 `contracts.py` 作为轻量统一契约层。
+两条并行的发送路径，共享同一个飞书 Webhook。核心代码按职责拆分到三个包：`fetcher/`（各平台抓取）、`summarizer/`（原始文章 → categories）、`sender/`（卡片构建 + 发送 + 静态模板）。主链路之间新增了 `contracts.py` 作为轻量统一契约层。配置统一由 `config.py` 管理，日志由 `logger.py`（基于 loguru）提供结构化输出。
+
+4. **配置与日志 —— `config.py` + `logger.py`**
+   - `config.py` 是全局唯一的 `load_dotenv()` 调用点。提供三层 API：`load_config()` 启动时严格校验所有必需项；`require_env(key, hint)` 缺失时友好退出；`get_env(key, default)` 静默回退。
+   - `logger.py` 封装 loguru，`init_logging(level, log_file)` 在 `hourly_bot.py` 启动时调用一次；`get_logger(name)` 返回带 bind 的 logger 实例。主链路各阶段有计时和上下文埋点。
+   - 子模块（`sender/core.py`、`summarizer/core.py`、`fetcher/x.py`、`fetcher/reddit.py`）均通过 `config.get_env()` 读取配置，不再自行调用 `load_dotenv()` 或 `os.getenv()`。
 
 1. **静态模板路径 —— `sender` 包 + `cards/`**
    - 入口：`python -m sender`（见 `sender/__main__.py`），复用 `sender/templates.py` 的 `load_templates()` 扫描 `cards/*.json`，文件名（去掉后缀）即 `--template` 参数值。
@@ -71,7 +76,7 @@ uv pip install -r requirements.txt
 
 2. **动态构建路径 —— `sender/builder.py` + `sender/core.py` + `categories.py`**
    - `sender.build_ai_daily_card(categories, platform, start_time, end_time)`（在 `sender/builder.py`，从包顶层 re-export）为纯函数：按平台（X / 即刻 / HackerNews…）与时间窗自适应生成标题，并为 `categories` 中每个主题生成一个 `collapsible_panel`。
-   - `sender.send_card(webhook_url, payload)`（在 `sender/core.py`）负责实际 HTTP 发送；`FEISHU_WEBHOOK_URL` 只在这里 `load_dotenv`，同时作为模块级 `WEBHOOK_URL` 导出。
+   - `sender.send_card(webhook_url, payload)`（在 `sender/core.py`）负责实际 HTTP 发送；`FEISHU_WEBHOOK_URL` 通过 `config.get_env()` 读取，同时作为模块级 `WEBHOOK_URL` 导出。
    - `categories.CATEGORY_EMOJI_MAP` 集中维护 7 个预设主题的 emoji（大厂&融资、模型&论文、产品&开源、编程&架构、增长&自媒体、独立开发、观点&争议）；`summarizer/schema.py` 通过 `CATEGORIES_ENUM = list(CATEGORY_EMOJI_MAP.keys())` 从这里派生主题白名单并注入 JSON Schema 的 `enum`。**上游 AI 只输出主题名，不输出 emoji**；无内容的主题不应出现在列表中。
    - `format_time_range()` 自动识别同日/跨日，生成 `YYYY.MM.DD HH - HH` 或跨日格式。
    - `sender.builder` 入口会调用 `contracts.validate_category_groups()` 做运行时校验，避免上游分类结构漂移时静默带错。

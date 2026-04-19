@@ -1,15 +1,15 @@
 """Reddit 抓取,基于 Apify trudax/reddit-scraper。"""
 
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from apify_client import ApifyClient
-from dotenv import load_dotenv
 
+from config import get_env
 from contracts import RawArticle, validate_raw_articles
+from logger import get_logger
 
-load_dotenv()
+log = get_logger("fetcher.reddit")
 
 _ACTOR_ID = "trudax/reddit-scraper-lite"
 _PLATFORM = "Reddit"
@@ -27,7 +27,7 @@ def fetch_reddit(
     subreddits: list[str] | None = None,
 ) -> list[RawArticle]:
     """抓取默认/指定 subreddit 近 N 小时内 score >= min_score 的帖子。"""
-    token = os.getenv("APIFY_API_TOKEN")
+    token = get_env("APIFY_API_TOKEN")
     if not token:
         raise RuntimeError("APIFY_API_TOKEN 未设置")
     since = datetime.now(timezone.utc) - timedelta(hours=hours)

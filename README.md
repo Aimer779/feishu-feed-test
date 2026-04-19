@@ -8,6 +8,8 @@
 - **动态模板加载**：所有静态卡片模板存放于 `cards/` 目录，程序启动时自动扫描加载，无需修改代码即可增删模板
 - **动态卡片构建**：通过 `sender` 包按平台、时间范围、主题动态组装飞书卡片，主题数量和子信息数完全自适应
 - **AI 资讯工作流**：`fetcher`（信息抓取器，HackerNews / X / Reddit 已接入，即刻待接入）、`summarizer`（信息总结器）、`sender`（消息发送器）三层已打通，可端到端自动生成并推送 AI 资讯卡片
+- **统一配置管理**：`config.py` 集中管理所有环境变量，单点 `load_dotenv()`，启动时严格校验必需配置项
+- **结构化日志**：基于 loguru 的日志系统，支持彩色终端输出、文件持久化、自动轮转，主链路各阶段带计时埋点
 - **灵活的命令行参数**：支持选择模板、加载外部 JSON、自定义 Webhook、简单变量覆盖等
 - **虚拟环境管理**：使用 `uv` 进行 Python 虚拟环境创建和依赖安装
 
@@ -33,7 +35,13 @@ uv pip install -r requirements.txt
    FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx
    ```
 
-3. 也可以通过环境变量直接覆盖：
+3. 可选：配置日志级别和日志文件持久化：
+   ```text
+   LOG_LEVEL=INFO          # DEBUG / INFO / WARNING / ERROR，默认 INFO
+   LOG_FILE=logs/app.log   # 不设置则仅输出到 stdout
+   ```
+
+4. 也可以通过环境变量直接覆盖：
 
 **Windows (PowerShell)**
 ```powershell
@@ -452,6 +460,8 @@ sender/core.py
 │   ├── reddit.py               # Reddit 抓取（Apify）
 │   └── x.py                    # X 抓取（Apify）
 ├── contracts.py                # 主链路最小统一契约与运行时校验
+├── config.py                   # 统一配置管理（单点 load_dotenv + 分层校验）
+├── logger.py                   # 结构化日志封装（基于 loguru）
 ├── tests/
 │   ├── test_contracts.py       # 最小契约测试
 │   ├── test_e2e.py             # mock 文章端到端

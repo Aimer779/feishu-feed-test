@@ -1,17 +1,18 @@
 import json
-import os
+import time
 
-from dotenv import load_dotenv
 from openai import OpenAI
 
+from config import get_env
 from contracts import CategoryGroup, RawArticle, validate_category_groups, validate_raw_articles
+from logger import get_logger
 
 from .prompt import SYSTEM_PROMPT
 from .schema import RESPONSE_SCHEMA
 
-load_dotenv()
-
 _CONTENT_TRUNCATE = 500
+
+log = get_logger("summarizer")
 
 
 def _render_user_prompt(articles: list[RawArticle], platform: str) -> str:
@@ -50,11 +51,13 @@ def summarize(
     articles = validate_raw_articles(articles, source="summarize input")
 
     client = OpenAI(
-        api_key=api_key or os.getenv("LLM_API_KEY"),
-        base_url=base_url or os.getenv("LLM_BASE_URL"),
+        api_key=api_key or get_env("LLM_API_KEY"),
+        base_url=base_url or get_env("LLM_BASE_URL"),
     )
-    resolved_model = model or os.getenv("LLM_MODEL", "gpt-4o-mini")
+    resolved_model = model or get_env("LLM_MODEL", "gpt-4o-mini")
 
+    log.info("LLM call start: model={}, articles={}", resolved_model, len(articles))
+    t0 = time.time()
     resp = client.chat.completions.create(
         model=resolved_model,
         response_format={"type": "json_schema", "json_schema": RESPONSE_SCHEMA},
@@ -63,6 +66,16 @@ def summarize(
             {"role": "user", "content": _render_user_prompt(articles, platform)},
         ],
     )
+    elapsed = time.time() - t0
+
+    usage = resp.usage
+    if usage:
+        log.info(
+            "LLM call completed in {:.1f}s, tokens: prompt={}, completion={}, total={}",
+            elapsed, usage.prompt_tokens, usage.completion_tokens, usage.total_tokens,
+        )
+    else:
+        log.info("LLM call completed in {:.1f}s", elapsed)
 
     payload = json.loads(resp.choices[0].message.content)
     categories = validate_category_groups(

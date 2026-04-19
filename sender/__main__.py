@@ -1,8 +1,9 @@
 import argparse
 import copy
 import json
-import os
 import sys
+
+from config import get_env
 
 from .core import send_card
 from .fixtures import mock_payload
@@ -23,7 +24,7 @@ def main():
     parser = argparse.ArgumentParser(description="发送飞书卡片消息")
     parser.add_argument(
         "--webhook",
-        default=os.getenv("FEISHU_WEBHOOK_URL", ""),
+        default=get_env("FEISHU_WEBHOOK_URL", ""),
         help="飞书 webhook 地址（默认从 FEISHU_WEBHOOK_URL 环境变量或 .env 文件读取）",
     )
     parser.add_argument(
