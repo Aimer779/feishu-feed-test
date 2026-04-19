@@ -19,7 +19,7 @@ _DEFAULT_SUBREDDITS = [
 
 
 def fetch_reddit(
-    hours: int = 4,
+    hours: int = 2,
     min_score: int = 30,
     limit: int = 40,
     subreddits: list[str] | None = None,

@@ -7,7 +7,7 @@
 - **多模板卡片发送**：内置文本、Markdown、模板卡片、旅游推荐、AI 资讯等多种卡片
 - **动态模板加载**：所有静态卡片模板存放于 `cards/` 目录，程序启动时自动扫描加载，无需修改代码即可增删模板
 - **动态卡片构建**：通过 `sender` 包按平台、时间范围、主题动态组装飞书卡片，主题数量和子信息数完全自适应
-- **AI 资讯工作流**：`fetcher`（信息抓取器，HackerNews 已接入，X/即刻/Reddit 待接入）、`summarizer`（信息总结器）、`sender`（消息发送器）三层已打通，可端到端自动生成并推送 AI 资讯卡片
+- **AI 资讯工作流**：`fetcher`（信息抓取器，HackerNews / X / Reddit 已接入，即刻待接入）、`summarizer`（信息总结器）、`sender`（消息发送器）三层已打通，可端到端自动生成并推送 AI 资讯卡片
 - **灵活的命令行参数**：支持选择模板、加载外部 JSON、自定义 Webhook、简单变量覆盖等
 - **虚拟环境管理**：使用 `uv` 进行 Python 虚拟环境创建和依赖安装
 
@@ -95,6 +95,36 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 .venv\Scripts\python.exe -m fetcher.hn
 ```
 
+### 调试 X / Reddit 抓取
+
+```powershell
+# X：默认抓取近 24h，打印前 5 条
+.venv\Scripts\python.exe -m fetcher.x
+
+# Reddit：默认抓取近 2h，打印前 3 条
+.venv\Scripts\python.exe -m fetcher.reddit
+```
+
+### 按平台节奏运行定时推送
+
+```powershell
+# 按当前中国时区时间判断哪些平台应该执行
+.venv\Scripts\python.exe hourly_bot.py --dry-run
+
+# 只调试某个平台，不发飞书
+.venv\Scripts\python.exe hourly_bot.py --only x --dry-run
+.venv\Scripts\python.exe hourly_bot.py --only reddit --dry-run
+.venv\Scripts\python.exe hourly_bot.py --only hn --dry-run
+
+# 忽略节奏限制，强制检查所有平台
+.venv\Scripts\python.exe hourly_bot.py --force --dry-run
+```
+
+当前平台节奏：
+- `X`：每 1 小时检查一次，抓取近 24 小时内容，并按发送历史去重
+- `Reddit`：每 2 小时检查一次，抓取近 2 小时内容
+- `HackerNews`：每天中国时区 `13:10` 检查一次，抓取近 24 小时内容
+
 `examples/preview_ai_daily.py` 会生成四个预览文件用于调试：
 - `preview_ai_daily_x.json`
 - `preview_ai_daily_jike.json`
@@ -117,6 +147,10 @@ $env:FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 
 # 真实 HN 抓取版（fetch_hn → summarize → build → send）
 .venv\Scripts\python.exe tests\test_hn_e2e.py
+
+# 真实 X / Reddit 抓取版
+.venv\Scripts\python.exe tests\test_x_e2e.py --dry-run
+.venv\Scripts\python.exe tests\test_reddit_e2e.py --dry-run
 ```
 
 ## 内置静态模板
@@ -181,6 +215,13 @@ fetcher/ (抓取) → summarizer (AI 总结分类) → sender (组装+发送)
 - **子信息数自适应**：每个主题下 1~M 条信息均可正常渲染
 - **emoji 硬编码映射**：`categories.py` 维护 `CATEGORY_EMOJI_MAP`，上游 AI 只需输出主题名，无需关心 emoji
 
+### `hourly_bot.py` 调度约定
+
+- 调度配置集中在 `delivery.py`
+- `hourly_bot.py` 不再把多个平台合并成一张卡，而是按平台分别抓取、总结、构建、发送
+- `tmp/delivery_state.json` 记录最近已发送过的 URL，用于小时级/跨窗口抓取时去重
+- 卡片标题仍显示**总结后的信息条数**和**实际抓取时间窗**
+
 ### 7 大预设主题
 
 | 主题 | emoji |
@@ -242,16 +283,21 @@ fetcher/ (抓取) → summarizer (AI 总结分类) → sender (组装+发送)
 │   ├── schema.py               # RESPONSE_SCHEMA + CATEGORIES_ENUM
 │   └── fixtures.py             # mock_articles()
 ├── fetcher/                    # 信息抓取器（包，按平台拆文件）
-│   ├── __init__.py             # 导出 fetch_hn()
-│   └── hn.py                   # HackerNews 抓取（Algolia Search API）
+│   ├── __init__.py             # 导出 fetch_hn / fetch_x / fetch_reddit()
+│   ├── hn.py                   # HackerNews 抓取（Algolia Search API）
+│   ├── reddit.py               # Reddit 抓取（Apify）
+│   └── x.py                    # X 抓取（Apify）
 ├── tests/
 │   ├── test_e2e.py             # mock 文章端到端
-│   └── test_hn_e2e.py          # 真实 HN 抓取端到端
+│   ├── test_hn_e2e.py          # 真实 HN 抓取端到端
+│   ├── test_reddit_e2e.py      # 真实 Reddit 抓取端到端
+│   └── test_x_e2e.py           # 真实 X 抓取端到端
 ├── examples/
 │   └── preview_ai_daily.py     # AI Daily 卡片示例与预览入口
 ├── .venv/                      # Python 虚拟环境（由 uv 创建）
 ├── requirements.txt            # 项目依赖
 ├── send_out.py                 # 从外部数据文件直接发送卡片
+├── delivery.py                 # 平台调度配置与发送历史去重
 ├── categories.py               # 主题与 emoji 映射
 ├── tmp/                        # 临时输出目录（预览文件、测试产物，已加入 .gitignore）
 ├── lesson.md                   # 飞书卡片实战经验总结

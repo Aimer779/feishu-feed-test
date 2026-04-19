@@ -39,18 +39,25 @@ uv pip install -r requirements.txt
 .venv\Scripts\python.exe -m fetcher.x
 .venv\Scripts\python.exe -m fetcher.reddit
 
+# 按平台节奏运行定时推送（不发飞书）
+.venv\Scripts\python.exe hourly_bot.py --dry-run
+.venv\Scripts\python.exe hourly_bot.py --only x --dry-run
+.venv\Scripts\python.exe hourly_bot.py --only reddit --dry-run
+.venv\Scripts\python.exe hourly_bot.py --only hn --dry-run
+.venv\Scripts\python.exe hourly_bot.py --force --dry-run
+
 # 端到端：mock 文章 → summarizer → builder → 发送
 .venv\Scripts\python.exe tests\test_e2e.py
 
 # 端到端：真实抓取 → summarizer → builder → 发送
-.venv\Scripts\python.exe tests\test_hn_e2e.py
-.venv\Scripts\python.exe tests\test_x_e2e.py
-.venv\Scripts\python.exe tests\test_reddit_e2e.py
+.venv\Scripts\python.exe tests\test_hn_e2e.py --dry-run
+.venv\Scripts\python.exe tests\test_x_e2e.py --dry-run
+.venv\Scripts\python.exe tests\test_reddit_e2e.py --dry-run
 ```
 
 环境变量（见 `.env.example`）：`FEISHU_WEBHOOK_URL` 给发送用，`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` 给 summarizer 用，`APIFY_API_TOKEN` 给 `fetcher/x.py` 和 `fetcher/reddit.py` 用。
 
-项目目前没有 pytest 等测试框架或 lint 配置，`tests/test_e2e.py` 与 `tests/test_hn_e2e.py` 都是手动运行的端到端脚本（前者用 mock 文章，后者用真实 HN 抓取）。
+项目目前没有 pytest 等测试框架或 lint 配置，`tests/` 下几个脚本都是手动运行的端到端脚本；其中 `test_e2e.py` 用 mock 文章，`test_hn_e2e.py` / `test_x_e2e.py` / `test_reddit_e2e.py` 走真实抓取。
 
 ## 代码架构
 
@@ -70,6 +77,13 @@ uv pip install -r requirements.txt
    - `format_time_range()` 自动识别同日/跨日，生成 `YYYY.MM.DD HH - HH` 或跨日格式。
    - 预览入口：`examples/preview_ai_daily.py`（内置 `SAMPLE_CATEGORIES`，写到 `tmp/preview_ai_daily_*.json`）。
    - 生产发送入口：根目录的 `send_out.py`，从项目根的 `out.json`（summarizer 输出的 categories）读取数据并发送。
+   - 当前标题展示规则未做平台特化：统一显示**总结后的信息条数**和**抓取时间窗**。
+
+3. **调度路径 —— `delivery.py` + `hourly_bot.py`**
+   - `delivery.py` 维护平台调度配置：抓取窗口、执行节奏、最小文章数、发送历史去重窗口。
+   - `hourly_bot.py` 按平台分别执行抓取、总结、构卡和发送，不再把多个平台合并成一张卡。
+   - `tmp/delivery_state.json` 记录最近已发送 URL，用于跨窗口抓取时避免重复发送。
+   - 当前节奏约定：`X` 每 1 小时检查一次但抓取近 24 小时；`Reddit` 每 2 小时检查一次并抓取近 2 小时；`HackerNews` 每天中国时区 `13:10` 检查一次并抓取近 24 小时。
 
 ### 数据流水线
 
@@ -80,16 +94,17 @@ fetcher/   →  summarizer/  →  sender/builder.py  →  sender/core.py
 
 - `fetcher/` 按平台拆文件，统一输出带 `platform / title / url / content / author / published_at` 的原始文章列表，喂给 `summarizer.summarize()`。
   - `fetcher/hn.py::fetch_hn(hours=24, min_score=50, limit=30)` 已实现：走 Algolia HN Search API（`hn.algolia.com/api/v1/search`），一次请求按 `points` 和 `created_at_i` 过滤，不抓外链正文，`content` 字段直接填 `title`（先跑通链路，后续摘要质量不够再升级到 `trafilatura` 抽原文）。Ask/Show HN 帖子 url 为 null 时会 fallback 到 `news.ycombinator.com/item?id={id}`。
-  - `fetcher/x.py::fetch_x(hours=1, min_favorites=20, limit=50, handles=None)` 走 Apify `apidojo/tweet-scraper`（当前定价 $0.40/1k tweets），按模块级 `_DEFAULT_HANDLES`（AI KOL 列表）拉最新推文，`since` 本地二次过滤解决 actor 的 `start` 只支持日期级的限制；字段映射：`text`→`content`（前 60 字 + "…" 作 `title`）、`author.userName`→`@handle`。
-  - `fetcher/reddit.py::fetch_reddit(hours=4, min_score=30, limit=40, subreddits=None)` 走 Apify `trudax/reddit-scraper`，按模块级 `_DEFAULT_SUBREDDITS`（AI 相关 sub）拉最新 post，只过滤 `dataType=="post"`，已开启 Apify 住宅代理避开 Reddit 的 IP 封锁；`body` 可能为空（链接帖），fallback 到 `title`。
+  - `fetcher/x.py::fetch_x(hours=24, since=None, until=None, min_favorites=5, search_min_favorites=25, handle_limit=50, search_limit=200, handles=None, search_terms=None)` 走 Apify `apidojo/tweet-scraper`，同时抓核心账号时间线和关键词搜索；本地再按 `since/until` 精确过滤，解决 actor 的日期级 `start/end` 不够细的问题。字段映射：`text`→`content`（前 60 字 + "..." 作 `title`）、`author.userName`→`@handle`。
+  - `fetcher/reddit.py::fetch_reddit(hours=2, min_score=30, limit=40, subreddits=None)` 走 Apify `trudax/reddit-scraper-lite`，按模块级 `_DEFAULT_SUBREDDITS`（AI 相关 sub）拉最新 post，只过滤 `dataType=="post"`；`body` 可能为空（链接帖），fallback 到 `title`。
   - 即刻尚未接入，需要自行逆向 `api.ruguoapp.com` 签名。
 - `summarizer/` 已是完整实现：`core.summarize(articles, platform)` 走 OpenAI 兼容 API（`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`），以 `summarizer/prompt.py` 的 system prompt + `summarizer/schema.py` 的 `response_format={"type": "json_schema"}` 约束结构，返回 `[{name, summary, items: [{title, summary}]}]`，即 `build_ai_daily_card` 期望的 `categories` 参数。空 items 的主题会被过滤掉。
 - `summarizer/fixtures.py::mock_articles()` 提供可直接喂给 `summarize` 的样例文章，`python -m summarizer` 会用它跑一遍并打印 JSON。
-- 平台抓取周期约定：X 1 小时、即刻 2 小时、Reddit 4 小时、HackerNews 24 小时。
+- 平台节奏约定：`X` 每 1 小时检查一次但抓取近 24 小时；`Reddit` 每 2 小时检查一次并抓取近 2 小时；`HackerNews` 每天中国时区 `13:10` 检查一次并抓取近 24 小时。
 
 ## 新增内容的注意事项
 
 - **新静态模板**：放入 `cards/`，保持完整 payload 格式；新增后用 `python -m sender --list` 验证是否被正确加载（解析失败会直接使程序退出）。引用的 `img_key` 需上传到对应飞书租户。
 - **扩展动态卡片的主题**：同时更新 `categories.py` 的 `CATEGORY_EMOJI_MAP` 与 README 中的主题表，保持两处一致；`summarizer/schema.py` 的枚举和 `summarizer/prompt.py` 里的主题说明由前者派生/同步，新增主题时记得在 prompt 里补上对应的说明。
 - **新增平台 fetcher**：在 `fetcher/` 下新建 `<platform>.py`，暴露一个返回 `list[dict]` 的抓取函数，字段严格对齐 `platform / title / url / content / author / published_at`；在 `fetcher/__init__.py` 里 re-export，并加一个 `if __name__ == "__main__":` 的独立调试入口（参考 `fetcher/hn.py`）。平台依赖按需加入 `requirements.txt`；目前 Apify 系（X / Reddit）统一复用 `apify-client`。
+- **调整平台节奏**：优先修改 `delivery.py`，不要把抓取窗口、发送节奏和标题展示逻辑散落到 `hourly_bot.py` 或各个 `tests/*_e2e.py` 里。
 - **调试卡片视觉**：`examples/preview_ai_daily.py` 运行会在 `tmp/` 下写出 `preview_ai_daily_*.json`，可用作不发送情况下的 payload 校对（历史预览文件保留在 `test-file/`，`backup/` 保留 AI Daily 卡片的演进版本）。
