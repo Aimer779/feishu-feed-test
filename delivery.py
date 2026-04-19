@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+from logger import get_logger
+
+log = get_logger("delivery")
 
 
 @dataclass(frozen=True)
@@ -78,15 +83,21 @@ def _is_due(config: DeliveryConfig, now_cn: datetime) -> bool:
 def load_delivery_state() -> dict[str, dict[str, str]]:
     if not _STATE_FILE.exists():
         return {}
-    with _STATE_FILE.open("r", encoding="utf-8") as f:
-        data = json.load(f)
+    try:
+        with _STATE_FILE.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        log.warning("Corrupted delivery state file, resetting to empty: {}", e)
+        return {}
     return data if isinstance(data, dict) else {}
 
 
 def save_delivery_state(state: dict[str, dict[str, str]]) -> None:
     _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with _STATE_FILE.open("w", encoding="utf-8") as f:
+    tmp_path = _STATE_FILE.with_name(_STATE_FILE.name + ".tmp")
+    with tmp_path.open("w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
+    os.replace(tmp_path, _STATE_FILE)
 
 
 def filter_recent_articles(
