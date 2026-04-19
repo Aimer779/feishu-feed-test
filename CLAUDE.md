@@ -78,7 +78,7 @@ uv pip install -r requirements.txt
    - `delivery.py` 维护平台调度配置：抓取窗口、执行节奏、最小文章数、发送历史去重窗口。
    - `hourly_bot.py` 按平台分别执行抓取、总结、构卡和发送，不再把多个平台合并成一张卡。
    - `tmp/delivery_state.json` 记录最近已发送 URL，用于跨窗口抓取时避免重复发送。
-   - 当前节奏约定：`X` 每 1 小时检查一次但抓取近 24 小时；`Reddit` 每 2 小时检查一次并抓取近 2 小时；`HackerNews` 每天中国时区 `13:10` 检查一次并抓取近 24 小时。
+   - 当前节奏约定：`X` 每 1 小时检查一次但抓取近 24 小时；`Reddit` 每 2 小时检查一次并抓取近 2 小时；`HackerNews` 每天中国时区 `13` 点这一轮检查一次并抓取近 24 小时。
 
 ### 数据流水线
 
@@ -94,7 +94,7 @@ fetcher/   →  summarizer/  →  sender/builder.py  →  sender/core.py
   - 即刻尚未接入，需要自行逆向 `api.ruguoapp.com` 签名。
 - `summarizer/` 已是完整实现：`core.summarize(articles, platform)` 走 OpenAI 兼容 API（`LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`），以 `summarizer/prompt.py` 的 system prompt + `summarizer/schema.py` 的 `response_format={"type": "json_schema"}` 约束结构，返回 `[{name, summary, items: [{title, summary}]}]`，即 `build_ai_daily_card` 期望的 `categories` 参数。空 items 的主题会被过滤掉。
 - `summarizer/fixtures.py::mock_articles()` 提供可直接喂给 `summarize` 的样例文章，`python -m summarizer` 会用它跑一遍并打印 JSON。
-- 平台节奏约定：`X` 每 1 小时检查一次但抓取近 24 小时；`Reddit` 每 2 小时检查一次并抓取近 2 小时；`HackerNews` 每天中国时区 `13:10` 检查一次并抓取近 24 小时。
+- 平台节奏约定：`X` 每 1 小时检查一次但抓取近 24 小时；`Reddit` 每 2 小时检查一次并抓取近 2 小时；`HackerNews` 每天中国时区 `13` 点这一轮检查一次并抓取近 24 小时。
 
 ## 新增内容的注意事项
 

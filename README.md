@@ -192,7 +192,7 @@ export FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 当前平台节奏：
 - `X`：每 1 小时检查一次，抓取近 24 小时内容，并按发送历史去重
 - `Reddit`：每 2 小时检查一次，抓取近 2 小时内容
-- `HackerNews`：每天中国时区 `13:10` 检查一次，抓取近 24 小时内容
+- `HackerNews`：每天中国时区 `13` 点这一轮检查一次，抓取近 24 小时内容
 
 ### 端到端链路测试（summarizer → card_builder → 发送）
 

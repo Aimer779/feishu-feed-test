@@ -45,7 +45,6 @@ PLATFORM_DELIVERY_CONFIGS: dict[str, DeliveryConfig] = {
         min_articles=5,
         dedupe_hours=24,
         trigger_hour_cn=13,
-        trigger_minute_cn=10,
     ),
 }
 
@@ -65,10 +64,14 @@ def due_platform_keys(now_cn: datetime) -> list[str]:
 
 
 def _is_due(config: DeliveryConfig, now_cn: datetime) -> bool:
-    if config.trigger_hour_cn is not None and now_cn.hour != config.trigger_hour_cn:
-        return False
-    if config.trigger_minute_cn is not None and now_cn.minute != config.trigger_minute_cn:
-        return False
+    # 显式触发时间优先：适合“每天某个时间点/某个小时档位执行一次”的平台。
+    if config.trigger_hour_cn is not None:
+        if now_cn.hour != config.trigger_hour_cn:
+            return False
+        if config.trigger_minute_cn is not None:
+            return now_cn.minute == config.trigger_minute_cn
+        return True
+
     return now_cn.hour % config.cadence_hours == 0
 
 
