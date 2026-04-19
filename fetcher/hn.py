@@ -5,6 +5,8 @@ from typing import Any
 
 import requests
 
+from contracts import RawArticle, validate_raw_articles
+
 _SEARCH_URL = "https://hn.algolia.com/api/v1/search"
 _HN_ITEM_URL = "https://news.ycombinator.com/item?id={id}"
 _PLATFORM = "HackerNews"
@@ -14,7 +16,7 @@ def fetch_hn(
     hours: int = 24,
     min_score: int = 50,
     limit: int = 30,
-) -> list[dict]:
+) -> list[RawArticle]:
     """抓取 HackerNews 近 N 小时内分数 >= min_score 的热门 story。
 
     返回 summarizer.summarize() 期望的原始文章格式:
@@ -29,20 +31,20 @@ def fetch_hn(
     resp = requests.get(_SEARCH_URL, params=params, timeout=30)
     resp.raise_for_status()
     hits = resp.json().get("hits", [])
-    return [_to_article(h) for h in hits]
+    return validate_raw_articles([_to_article(h) for h in hits], source="fetch_hn output")
 
 
-def _to_article(hit: dict[str, Any]) -> dict:
+def _to_article(hit: dict[str, Any]) -> RawArticle:
     url = hit.get("url") or _HN_ITEM_URL.format(id=hit["objectID"])
     title = hit.get("title", "")
-    return {
-        "platform": _PLATFORM,
-        "title": title,
-        "url": url,
-        "content": title,
-        "author": hit.get("author", ""),
-        "published_at": hit.get("created_at", ""),
-    }
+    return RawArticle(
+        platform=_PLATFORM,
+        title=title,
+        url=url,
+        content=title,
+        author=hit.get("author", ""),
+        published_at=hit.get("created_at", ""),
+    )
 
 
 if __name__ == "__main__":

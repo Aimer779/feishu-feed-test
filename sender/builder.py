@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from categories import CATEGORY_EMOJI_MAP, PLATFORM_COLOR_MAP
+from contracts import CategoryGroup, validate_category_groups
 
 
 def format_time_range(start_time: datetime, end_time: datetime) -> str:
@@ -14,7 +15,7 @@ def format_time_range(start_time: datetime, end_time: datetime) -> str:
 
 
 def build_ai_daily_card(
-    categories: list[dict],
+    categories: list[CategoryGroup],
     platform: str = "AI Daily",
     start_time: datetime | None = None,
     end_time: datetime | None = None,
@@ -46,6 +47,7 @@ def build_ai_daily_card(
         start_time = datetime.now()
     if end_time is None:
         end_time = datetime.now()
+    categories = validate_category_groups(categories, source="build_ai_daily_card input")
 
     time_range = format_time_range(start_time, end_time)
     total_items = sum(len(c.get("items", [])) for c in categories)
@@ -73,7 +75,7 @@ def build_ai_daily_card(
         },
     }
 
-    for idx, cat in enumerate(categories):
+    for cat in categories:
         items = cat.get("items", [])
         if not items:
             continue

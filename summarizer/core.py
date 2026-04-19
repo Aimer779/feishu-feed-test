@@ -1,9 +1,10 @@
 import json
 import os
-from typing import Any
 
 from dotenv import load_dotenv
 from openai import OpenAI
+
+from contracts import CategoryGroup, RawArticle, validate_category_groups, validate_raw_articles
 
 from .prompt import SYSTEM_PROMPT
 from .schema import RESPONSE_SCHEMA
@@ -13,7 +14,7 @@ load_dotenv()
 _CONTENT_TRUNCATE = 500
 
 
-def _render_user_prompt(articles: list[dict], platform: str) -> str:
+def _render_user_prompt(articles: list[RawArticle], platform: str) -> str:
     lines = [f"平台: {platform}", f"文章数: {len(articles)}", "", "以下是本批原始文章(JSON Lines):"]
     for art in articles:
         content = (art.get("content") or "").strip().replace("\n", " ")
@@ -31,12 +32,12 @@ def _render_user_prompt(articles: list[dict], platform: str) -> str:
 
 
 def summarize(
-    articles: list[dict],
+    articles: list[RawArticle],
     platform: str,
     model: str | None = None,
     base_url: str | None = None,
     api_key: str | None = None,
-) -> list[dict]:
+) -> list[CategoryGroup]:
     """把一批原始文章压缩成 categories 结构。
 
     articles: fetcher/ 各模块输出的原始文章列表。
@@ -46,6 +47,7 @@ def summarize(
     """
     if not articles:
         return []
+    articles = validate_raw_articles(articles, source="summarize input")
 
     client = OpenAI(
         api_key=api_key or os.getenv("LLM_API_KEY"),
@@ -63,5 +65,8 @@ def summarize(
     )
 
     payload = json.loads(resp.choices[0].message.content)
-    categories = payload.get("categories", [])
-    return [c for c in categories if c.get("items")]
+    categories = validate_category_groups(
+        payload.get("categories", []),
+        source="summarize output",
+    )
+    return [category for category in categories if category["items"]]

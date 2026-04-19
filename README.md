@@ -222,6 +222,18 @@ export FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 .venv/bin/python tests/test_reddit_e2e.py --dry-run
 ```
 
+### 最小契约测试（fetcher → summarizer → builder）
+
+**Windows (PowerShell)**
+```powershell
+.venv\Scripts\python.exe tests\test_contracts.py
+```
+
+**Linux / macOS**
+```bash
+.venv/bin/python tests/test_contracts.py
+```
+
 ## 内置静态模板
 
 | 模板名 | 说明 |
@@ -274,6 +286,89 @@ export FEISHU_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx"
 fetcher/ (抓取) → summarizer (AI 总结分类) → sender (组装+发送)
 ```
 
+### 最小统一契约
+
+当前主链路已补上一层轻量契约：`contracts.py`。
+
+- `RawArticle`：约束 `fetcher/` 输出的原始文章结构
+- `CategoryItem` / `CategoryGroup`：约束 `summarizer` 输出、`sender.builder` 输入的分类结构
+- `validate_raw_articles()`：在各平台 `fetcher` 返回前校验字段是否完整且为字符串
+- `validate_category_groups()`：在 `summarizer` 输出和 `sender.builder` 输入处校验分类结构
+
+这层契约的目标不是做重型模型层，而是让后续扩平台、改 prompt、改 schema 时，问题尽量在模块边界就暴露，而不是拖到链路后半段才出错。
+
+### 契约链路图
+
+```text
+第三方平台原始响应
+        ↓
+fetcher/<platform>.py
+  - 负责抓取、过滤、字段映射
+  - 输出 list[RawArticle]
+  - 返回前调用 validate_raw_articles()
+        ↓
+summarizer/core.py
+  - 输入必须是 list[RawArticle]
+  - 调 LLM + JSON Schema 约束输出
+  - 输出 list[CategoryGroup]
+  - 返回前调用 validate_category_groups()
+        ↓
+sender/builder.py
+  - 输入必须是 list[CategoryGroup]
+  - 入口再次调用 validate_category_groups()
+  - 输出 Feishu webhook payload
+        ↓
+sender/core.py
+  - 发送到 Feishu webhook
+```
+
+### 后续接手最常改的入口
+
+#### 1. 新增平台
+
+优先改这些文件：
+
+- `fetcher/<platform>.py`
+- `fetcher/__init__.py`
+- `delivery.py`
+- `README.md`
+- `CLAUDE.md`
+
+最小实现步骤：
+
+1. 在 `fetcher/` 下新增 `<platform>.py`
+2. 将第三方原始数据映射为 `RawArticle`
+3. 在返回前调用 `validate_raw_articles()`
+4. 在 `fetcher/__init__.py` 里导出新函数
+5. 在 `delivery.py` 配置抓取窗口、节奏、去重窗口
+6. 用 `hourly_bot.py --only <platform> --dry-run` 做联调
+
+#### 2. 调整 prompt 或 schema
+
+优先改这些文件：
+
+- `summarizer/prompt.py`
+- `summarizer/schema.py`
+- `categories.py`
+
+注意点：
+
+- 如果新增主题，必须同时更新 `categories.py` 和 `summarizer/schema.py`
+- `summarizer` 输出要继续满足 `CategoryGroup` 契约
+- 即使 LLM 返回 JSON 可解析，运行时校验不过也会直接报错
+
+#### 3. 调整卡片结构
+
+优先改这些文件：
+
+- `sender/builder.py`
+- `categories.py`
+
+注意点：
+
+- `builder` 只假设输入是合法的 `CategoryGroup`
+- 如果卡片要增加平台特化展示，优先在 `builder` 内做，不要反向污染 `summarizer`
+
 ### `sender.builder` 核心能力
 
 - **平台差异化**：支持 `X`、`即刻`、`HackerNews` 等不同平台，标题自动显示平台名
@@ -305,7 +400,7 @@ fetcher/ (抓取) → summarizer (AI 总结分类) → sender (组装+发送)
 
 ### 上游约定
 
-`fetcher/` 各平台模块输出原始文章列表，`summarizer` 调用 AI 后输出如下结构：
+`fetcher/` 各平台模块输出原始文章列表，字段统一对齐为 `platform / title / url / content / author / published_at`，并在返回前经过 `contracts.validate_raw_articles()` 校验；`summarizer` 调用 AI 后输出如下结构：
 
 ```python
 [
@@ -322,7 +417,7 @@ fetcher/ (抓取) → summarizer (AI 总结分类) → sender (组装+发送)
 ]
 ```
 
-> 注意：若某主题无文章，则**不应出现在列表中**；AI 输出也**不需要包含 emoji**。
+> 注意：若某主题无文章，则**不应出现在列表中**；AI 输出也**不需要包含 emoji**。`summarizer` 输出和 `sender.builder` 输入会经过 `contracts.validate_category_groups()` 校验。
 
 ## 项目结构
 
@@ -356,7 +451,9 @@ fetcher/ (抓取) → summarizer (AI 总结分类) → sender (组装+发送)
 │   ├── hn.py                   # HackerNews 抓取（Algolia Search API）
 │   ├── reddit.py               # Reddit 抓取（Apify）
 │   └── x.py                    # X 抓取（Apify）
+├── contracts.py                # 主链路最小统一契约与运行时校验
 ├── tests/
+│   ├── test_contracts.py       # 最小契约测试
 │   ├── test_e2e.py             # mock 文章端到端
 │   ├── test_hn_e2e.py          # 真实 HN 抓取端到端
 │   ├── test_reddit_e2e.py      # 真实 Reddit 抓取端到端

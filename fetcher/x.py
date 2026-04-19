@@ -7,6 +7,8 @@ from typing import Any
 from apify_client import ApifyClient
 from dotenv import load_dotenv
 
+from contracts import RawArticle, validate_raw_articles
+
 load_dotenv()
 
 _ACTOR_ID = "apidojo/tweet-scraper"
@@ -48,7 +50,7 @@ def fetch_x(
     search_limit: int = 200,
     handles: list[str] | None = None,
     search_terms: list[str] | None = None,
-) -> list[dict]:
+) -> list[RawArticle]:
     """抓取指定 X 账号时间线或关键词搜索近 N 小时内的推文。
 
     Args:
@@ -94,7 +96,7 @@ def fetch_x(
     else:
         search_terms_list = _build_search_queries(_BASE_SEARCH_TERMS, since, until)
 
-    all_articles: list[dict] = []
+    all_articles: list[RawArticle] = []
 
     # 1. 抓 handles 时间线（不加认证限制，保留所有关注账号）
     if handles_list:
@@ -125,12 +127,12 @@ def fetch_x(
 
     # 去重 + 截断
     seen_urls = set()
-    deduped = []
+    deduped: list[RawArticle] = []
     for art in all_articles:
         if art["url"] not in seen_urls:
             seen_urls.add(art["url"])
             deduped.append(art)
-    return deduped
+    return validate_raw_articles(deduped, source="fetch_x output")
 
 
 def _build_search_queries(base_terms: list[str], since: datetime, until: datetime) -> list[str]:
@@ -161,17 +163,17 @@ def _should_keep(it: dict, since: datetime, until: datetime, min_favorites: int)
         return False
 
 
-def _to_article(it: dict[str, Any]) -> dict:
+def _to_article(it: dict[str, Any]) -> RawArticle:
     text = (it.get("text") or "").strip().replace("\n", " ")
     author = (it.get("author") or {}).get("userName", "")
-    return {
-        "platform": _PLATFORM,
-        "title": text[:60] + ("..." if len(text) > 60 else ""),
-        "url": it.get("url", ""),
-        "content": text,
-        "author": f"@{author}" if author else "",
-        "published_at": it.get("createdAt", ""),
-    }
+    return RawArticle(
+        platform=_PLATFORM,
+        title=text[:60] + ("..." if len(text) > 60 else ""),
+        url=it.get("url", ""),
+        content=text,
+        author=f"@{author}" if author else "",
+        published_at=it.get("createdAt", ""),
+    )
 
 
 if __name__ == "__main__":
